@@ -5,15 +5,18 @@ from PySide6.QtCore import QSize, Qt, Slot, QFileInfo
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
     QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView)
+    QTableWidget, QTableWidgetItem, QHeaderView, QTableView, QAbstractItemView)
 from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QAction,
+    QIcon, QPixmap, QImage, QAction, QStandardItemModel,
 )
 
+from .vbao_wrapper import vbao
+from .viewmodel import ViewModel
 from .menu_bar import MenuBar
 from .table_item import TableItem
 
-class MainWindow(QMainWindow):
+
+class MainWindow(vbao.View, QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -23,75 +26,65 @@ class MainWindow(QMainWindow):
         self.menu_bar = MenuBar(self)
         self.setMenuBar(self.menu_bar)
 
-        self.table = QTableWidget(2,3)
+        self.viewmodel = ViewModel()
+        self.view = QTableView()
+        self.setupTableView()
+
         self.table_layout = QWidget(self)
         self.table_layout.setLayout(self.createTableLayout())
 
         self.setCentralWidget(self.table_layout)
 
-        self.table.setIconSize(QSize(40,40))
-        view = QHeaderView(Qt.Orientation.Vertical)
-        view.setDefaultSectionSize(100)
-        self.table.setVerticalHeader(view)
+        vbao.App.bind(self.viewmodel.model, self.viewmodel, self, True)
 
-        self.payloads = {}
+        t = self.view.selectionModel()
+        print(t.selectedIndexes())
 
 
-        t = TableItem('01.png')
-        t.setDisplay('01.png')
-        row = t.toTableWidgetItems()
-        self.table.setColumnCount(len(row))
-        self.addTableRow(0, row)
 
-        t2 = TableItem('main.py')
-        icon = QFileIconProvider().icon(QFileInfo('main.py'))
 
-        row = t2.toTableWidgetItems()
-        row[1].setIcon(icon)
-        self.addTableRow(1, row)
+        # self.payloads = {}
 
-        # m = model.Model()
-        # print(m.save([t,t2,t],'temp'))
+
+        # t = TableItem('01.png')
+        # t.setDisplay('01.png')
+        # row = t.toTableWidgetItems()
+        # self.table.setColumnCount(len(row))
+        # self.addTableRow(0, row)
+        #
+        # t2 = TableItem('main.py')
+        # icon = QFileIconProvider().icon(QFileInfo('main.py'))
+
+    def setupTableView(self):
+        self.view.setModel(self.viewmodel)
+
+        self.view.setIconSize(QSize(40,40))
+
+        header_view = QHeaderView(Qt.Orientation.Vertical, None)
+        header_view.setDefaultSectionSize(100)
+        self.view.setVerticalHeader(header_view)
+        self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+
+
 
     def createTableLayout(self):
         """need setLayout() to reparent"""
-        outer = QVBoxLayout()
+        outer_v = QVBoxLayout()
 
-        buttons = QHBoxLayout()
+        inner_h = QHBoxLayout()
         test_button = QPushButton("test button")
-        @Slot()
-        def log():
-            print("clicked")
-        test_button.clicked.connect(log)
+        test_button.clicked.connect(self.testFn)
 
         button = QPushButton("add")
         button.clicked.connect(self.commandAddNewFiles)
 
-        buttons.addWidget(test_button)
-        buttons.addWidget(button)
+        inner_h.addWidget(test_button)
+        inner_h.addWidget(button)
 
-        outer.addLayout(buttons)
-        outer.addWidget(self.table)
-        return outer
-
-    @Slot()
-    def commandAddNewFiles(self):
-        if (self.getSelectedFileFromUser()):
-            names = self.payloads["file_select"]
-            for name in names:
-                item = TableItem(name)
-                idx = self.table.rowCount()
-                self.table.insertRow(idx)
-                self.addTableRow(idx, item.toTableWidgetItems())
-
-    def getSelectedFileFromUser(self) -> bool:
-        # [from doc] If parent is not None, the dialog will be shown centered over the parent widget.
-        names, category = QFileDialog.getOpenFileNames(None, "Select files to add")
-        if names:
-            self.payloads["file_select"] = names
-            return True
-        else:
-            return False
+        outer_v.addLayout(inner_h)
+        outer_v.addWidget(self.view)
+        return outer_v
 
     def prepareMenuBar(self):
         menu1 = QMenu(self.menu_bar)
@@ -100,11 +93,22 @@ class MainWindow(QMainWindow):
 
         menu1.addAction(QAction("sub1", menu1))
 
-    def addTableRow(self, row, ls: List[QTableWidgetItem | QWidget]):
-        for i,ctx in enumerate(ls):
-            if isinstance(ctx, QTableWidgetItem):
-                self.table.setItem(row, i, ctx)
-            elif isinstance(ctx, QPushButton):
-                self.table.setCellWidget(row, i, ctx)
-            else:
-                raise TypeError
+    @Slot()
+    def testFn(self):
+        print(self.view.selectedIndexes())
+
+    @Slot()
+    def commandAddNewFiles(self):
+        # [from doc] If parent is not None, the dialog will be shown centered over the parent widget.
+        names, category = QFileDialog.getOpenFileNames(None, "Select files to add")
+        # QFileDialog.getSaveFileName()
+
+        if names:
+            for name in names:
+                self.commands["add_file"].setParameter(name)
+                self.runCommand("add_file")
+
+    @Slot()
+    def commandOpenFile(self):
+        selected_file = ''
+
