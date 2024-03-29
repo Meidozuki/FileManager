@@ -1,15 +1,15 @@
 import os
 import logging
+import numpy as np
 import pandas as pd
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from PIL import Image, ImageQt
 
 assert ImageQt.qt_is_installed
 
 from PySide6.QtWidgets import (
-    QWidget, QPushButton, QLabel,
-    QTableWidget, QTableWidgetItem, )
-from PySide6.QtGui import QIcon, QPixmap, QImage
+    QWidget, QPushButton, QLabel)
+from PySide6.QtGui import QIcon, QPixmap, QImage, QStandardItem
 
 from .open_button import FileOpenButton
 from .common import getFileIcon
@@ -48,6 +48,18 @@ class TableItem:
                    'tags': ', '.join(self.tags)}
         return pd.DataFrame(mapping.values(), mapping.keys()).T
 
+    @classmethod
+    def fromRecords(cls, data: pd.DataFrame):
+        res = []
+        for i in range(data.shape[0]):
+            temp = TableItem()
+            row = data.iloc[i]
+            temp._filename = row['filename']
+            temp.setDisplay(row['display_image'])
+            temp.setTags(row['tags'])
+            res.append(temp)
+        return res
+
     # setter
     def setFilename(self, filename: str, *, force: bool = False):
         if os.path.exists(filename) or force:
@@ -55,11 +67,22 @@ class TableItem:
         else:
             logging.warning(f"You are trying to add a non-existing file {filename}")
 
-    def setDisplay(self, display_filename: str):
+    def setDisplay(self, display_filename: str | None):
+        if display_filename is None:
+            return
         if os.path.exists(display_filename):
             self._display = display_filename
         else:
             raise FileNotFoundError(display_filename)
+
+    def setTags(self, tags):
+        if tags is None or not isinstance(tags, (str, list)):
+            return
+
+        if not tags:
+            self.tags = []
+        else:
+            self.tags = tags
 
     # getter
     def getShortName(self):
@@ -73,7 +96,7 @@ class TableItem:
             return None
 
     def getPreviewTableItem(self):
-        item = QTableWidgetItem()
+        item = QStandardItem()
         if self._display is not None:
             item.setBackground(self.getPreviewImage())
         else:
@@ -90,11 +113,11 @@ class TableItem:
         """
         This function is extracted for convenience when testing
         """
-        self.viewer = {'short_name': lambda: QTableWidgetItem(self.getShortName()),
-                       'full_name': lambda: QTableWidgetItem(os.path.abspath(self._filename)),
+        self.viewer = {'short_name': lambda: QStandardItem(self.getShortName()),
+                       'full_name': lambda: QStandardItem(os.path.abspath(self._filename)),
                        'preview': self.getPreviewTableItem,
                        'open_button': self.getOpenButton,
-                       'icon': lambda: QTableWidgetItem(getFileIcon(self._filename), '')
+                       'icon': lambda: QStandardItem(getFileIcon(self._filename), '')
                        }
 
         # immediately throw KeyError if not match
@@ -112,7 +135,7 @@ class TableItem:
             res.append(item)
 
             # check ahead of time
-            if not isinstance(item, (QTableWidgetItem, QPushButton)):
+            if not isinstance(item, (QStandardItem, QPushButton)):
                 logging.warning(f'[getTableWidgetItems] '
                                 f'The item {k} is not a valid candidate, may throw error afterwards')
 
