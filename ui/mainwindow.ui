@@ -19,7 +19,7 @@
      <rect>
       <x>160</x>
       <y>40</y>
-      <width>271</width>
+      <width>431</width>
       <height>231</height>
      </rect>
     </property>
@@ -73,13 +73,7 @@
     <addaction name="actionsub1"/>
     <addaction name="actionsub2"/>
    </widget>
-   <widget class="QMenu" name="menumenu2">
-    <property name="title">
-     <string>menu2</string>
-    </property>
-   </widget>
    <addaction name="menumenu1"/>
-   <addaction name="menumenu2"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionsub1">

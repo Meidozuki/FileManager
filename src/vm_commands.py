@@ -15,6 +15,7 @@ class CommandTryAddClass(vbao.CommandBaseWithOwner):
 
             self.args = None
 
+
 class CommandOpenFile(vbao.CommandBaseWithOwner):
     def setParameter(self, *args, **kwargs):
         self.open_program = 'explorer'
