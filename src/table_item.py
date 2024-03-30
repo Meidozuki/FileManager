@@ -41,6 +41,9 @@ class TableItem:
         self.image_size = (100, 100)
         self.tags = []
 
+    def __str__(self):
+        return f'TableItem("{self._filename}")'
+
     # save
     def toRecord(self):
         mapping = {'filename': self._filename,

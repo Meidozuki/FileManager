@@ -11,6 +11,9 @@ from .table_item import TableItem
 
 
 class Model(vbao.Model):
+    """
+    model用来与磁盘交互，此处实现为无状态的工具类
+    """
     def __init__(self):
         super().__init__()
 
@@ -27,8 +30,8 @@ class Model(vbao.Model):
 
     def load(self, save_dir: str):
         if not os.path.exists(save_dir):
-            logging.warning(f"Save file not found at {save_dir}. If you run this program first time, ignore this.")
-            return None
+            logging.warning(f"Save file not found at {save_dir}. If you run this program the first time, ignore this.")
+            return pd.DataFrame()
 
         df = pd.read_csv(save_dir)
         return df
