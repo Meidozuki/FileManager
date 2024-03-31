@@ -30,8 +30,7 @@ class MenuBar(QMenuBar):
     def trySaveCommand(self):
         path, category = QFileDialog.getSaveFileName(None, "Save file")
         if path:
-            self.parent().getCommand("save").setParameter(path)
-            self.parent().runCommand("save")
+            self.parent().getCommand("save").directCall(path)
 
     @Slot()
     def clearCommand(self):

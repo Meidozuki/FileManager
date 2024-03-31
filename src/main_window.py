@@ -106,8 +106,7 @@ class MainWindow(QMainWindow, vbao.View):
 
         if names:
             for name in names:
-                self.commands["add_file"].setParameter(name)
-                self.runCommand("add_file")
+                self.getCommand("add_file").directCall(name)
 
     @Slot()
     def commandOpenFile(self):
