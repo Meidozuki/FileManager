@@ -31,9 +31,6 @@ class MainWindow(QMainWindow, vbao.View):
         self.viewmodel = ViewModel()
         self.view = QTableView()
         self.setupTableView()
-        i = self.viewmodel.index(0,2)
-        b = QPushButton("abc")
-        self.view.setIndexWidget(i, b)
 
         self.table_layout = QWidget(self)
         self.table_layout.setLayout(self.createTableLayout())
@@ -43,26 +40,16 @@ class MainWindow(QMainWindow, vbao.View):
         vbao.App.bind(self.viewmodel.model, self.viewmodel, self, True)
         self.viewmodel.init('temp/temp')
 
-
-        # self.payloads = {}
-
-
-        # t = TableItem('01.png')
-        # t.setDisplay('01.png')
-        # row = t.toTableWidgetItems()
-        # self.table.setColumnCount(len(row))
-        # self.addTableRow(0, row)
-        #
-        # t2 = TableItem('main.py')
-        # icon = QFileIconProvider().icon(QFileInfo('main.py'))
-
     def getIndex(self, i, j):
         return self.view.model().index(i, j)
+
+    def setIndexWidget(self, i, j, widget: QWidget):
+        self.view.setIndexWidget(self.getIndex(i,j), widget)
 
     def setupTableView(self):
         self.view.setModel(self.viewmodel)
 
-        self.view.setIconSize(QSize(40,40))
+        self.view.setIconSize(QSize(30,30))
 
         header_view = QHeaderView(Qt.Orientation.Vertical, None)
         header_view.setDefaultSectionSize(100)
@@ -72,13 +59,14 @@ class MainWindow(QMainWindow, vbao.View):
 
     def updateDataFrame(self):
         for i, row_data in enumerate(self.getProperty('item_list')):
-            for j, ctx in enumerate(row_data.toTableWidgetItems()):
-                if isinstance(ctx, QStandardItem):
-                    pass
-                elif isinstance(ctx, QPushButton):
-                    self.view.setIndexWidget(self.getIndex(i,j), ctx)
-                else:
-                    raise TypeError
+            pixmap = row_data.getPreviewImage()
+            if pixmap is not None:
+                preview_image = QLabel()
+                preview_image.setPixmap(pixmap)
+                self.setIndexWidget(i, 1, preview_image)
+            else:
+                self.viewmodel.setItem(i, 1, QStandardItem("None"))
+
 
 
     def createTableLayout(self):

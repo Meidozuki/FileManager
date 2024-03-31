@@ -4,8 +4,6 @@ import logging
 import pandas as pd
 from typing import List
 
-from PySide6.QtCore import QAbstractTableModel
-
 from .vbao_wrapper import vbao
 from .table_item import TableItem
 

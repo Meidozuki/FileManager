@@ -5,13 +5,11 @@ import pandas as pd
 from typing import Optional, Tuple, List
 from PIL import Image, ImageQt
 
-assert ImageQt.qt_is_installed
 
 from PySide6.QtWidgets import (
     QWidget, QPushButton, QLabel)
 from PySide6.QtGui import QIcon, QPixmap, QImage, QStandardItem
 
-from .open_button import FileOpenButton
 from .common import getFileIcon
 
 
@@ -30,6 +28,23 @@ def readImage(filename: str, size: Optional[Tuple[int, int]] = None):
     else:
         logging.error(f"File not exist: {filename}")
         return None
+
+
+class TableItemChecklist:
+    class ItemRole:
+        uncertain = None
+        ModelRole = 'model'
+        ViewRole = 'view'
+        SelfRole = 'self'
+
+    ModelRole = ItemRole.ModelRole
+    ViewRole = ItemRole.ViewRole
+    SelfRole = ItemRole.SelfRole
+
+    def __init__(self, name: str, col: int, role: ItemRole | str):
+        self.name = name
+        self.col = col
+        self.role = role
 
 
 class TableItem:
@@ -88,8 +103,17 @@ class TableItem:
             self.tags = tags
 
     # getter
-    def getShortName(self):
+    @property
+    def short_name(self):
         return os.path.split(self._filename)[1]
+
+    @property
+    def full_name(self):
+        return os.path.abspath(self._filename)
+
+    @property
+    def icon(self) -> Optional[QIcon]:
+        return getFileIcon(self._filename)
 
     def getPreviewImage(self) -> Optional[QPixmap]:
         if self._display is not None:
@@ -98,51 +122,22 @@ class TableItem:
         else:
             return None
 
-    def getPreviewTableItem(self):
-        item = QStandardItem()
-        if self._display is not None:
-            item.setBackground(self.getPreviewImage())
-        else:
-            item.setText("None")
-        return item
-
-    def getOpenButton(self):
-        button = FileOpenButton()
-        button.setOverload(self._filename)
-        return button
-
     # to table view
-    def setupTableView(self):
-        """
-        This function is extracted for convenience when testing
-        """
-        self.viewer = {'short_name': lambda: QStandardItem(self.getShortName()),
-                       'full_name': lambda: QStandardItem(os.path.abspath(self._filename)),
-                       'preview': self.getPreviewTableItem,
-                       'open_button': self.getOpenButton,
-                       'icon': lambda: QStandardItem(getFileIcon(self._filename), '')
-                       }
+    @property
+    def checklist(self) -> List[TableItemChecklist]:
+        model_role, view_role = TableItemChecklist.ModelRole, TableItemChecklist.ViewRole
+        ls = [
+            TableItemChecklist('short_name_icon', 0, model_role),
+            TableItemChecklist('preview', 1, view_role),
+            TableItemChecklist('full_name', 2, model_role),
+            TableItemChecklist('icon', 3, model_role),
+            TableItemChecklist('empty', 4, model_role),
+        ]
+        return ls
 
-        # immediately throw KeyError if not match
-        self.pick = ['short_name', 'preview', 'open_button', 'full_name', 'icon']
-
-    def toTableWidgetItems(self, *, auto_setup=True):
-        assert self.check()
-
-        if auto_setup:
-            self.setupTableView()
-
-        res = []
-        for k in self.pick:
-            item = self.viewer[k]()
-            res.append(item)
-
-            # check ahead of time
-            if not isinstance(item, (QStandardItem, QPushButton)):
-                logging.warning(f'[getTableWidgetItems] '
-                                f'The item {k} is not a valid candidate, may throw error afterwards')
-
-        return res
+    @property
+    def expected_cols(self):
+        return len(self.checklist)
 
     # etc
     def check(self) -> bool:

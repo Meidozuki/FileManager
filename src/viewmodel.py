@@ -1,29 +1,28 @@
-import os.path
+import os
+import logging
+import pandas as pd
+
+from PySide6.QtCore import QSize, Qt, Slot, QFileInfo
+from PySide6.QtWidgets import (
+    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
+    )
+from PySide6.QtGui import (
+    QIcon, QPixmap, QImage, QStandardItemModel, QStandardItem
+)
 
 from .vbao_wrapper import vbao
 # import vbao
-import pandas as pd
-import logging
-from typing import List
-
-
-from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QAbstractTableModel
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView, QTableView, QListView, QTreeView)
-from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem
-)
-
-from .model import Model, TableItem
+from .table_item import TableItem, TableItemChecklist
+from .model import Model
 from .vm_commands import *
+from .common import getFileIcon
 
 
-class ViewModel(QStandardItemModel,vbao.ViewModel):
+class ViewModel(QStandardItemModel, vbao.ViewModel):
     """
     viewmodel存储从dataframe转化而来的信息
     """
+
     def __init__(self, parent=None, ):
         super().__init__(parent)
 
@@ -36,7 +35,6 @@ class ViewModel(QStandardItemModel,vbao.ViewModel):
         print(self._df)
         self.setProperty_vbao("current_df", self._df)
         self.onDataFrameChanged()
-
 
     def loadData(self, filename):
         """load data from disk"""
@@ -53,25 +51,28 @@ class ViewModel(QStandardItemModel,vbao.ViewModel):
         mediate = TableItem.fromRecords(df)
         self.setProperty_vbao("item_list", mediate)
         if mediate:
-            col_count = len(mediate[0].toTableWidgetItems())
+            col_count = mediate[0].expected_cols
             if self.columnCount() < col_count:
                 self.setColumnCount(col_count)
 
-        for i, data in enumerate(mediate):
-            self.addTableRow(i, data.toTableWidgetItems())
+            for i, data in enumerate(mediate):
+                self.addTableRow(i, data)
+
+    def addTableRow(self, idx, item: TableItem):
+        viewer = {'short_name': lambda: QStandardItem(item.short_name),
+                  'full_name': lambda: QStandardItem(item.full_name),
+                  'short_name_icon': lambda: QStandardItem(item.icon, item.short_name),
+                  'icon': lambda: QStandardItem(item.icon, ''),
+                  'empty': lambda: QStandardItem()
+                  }
+
+        for check in item.checklist:
+            if check.role == TableItemChecklist.ModelRole:
+                # immediately throw KeyError if not match
+                fn = viewer[check.name]
+                self.setItem(idx, check.col, fn())
 
         self.triggerPropertyNotifications("current_df")
-
-
-    def addTableRow(self, row, ls: List[QTableWidgetItem | QWidget]):
-        for i, ctx in enumerate(ls):
-            if isinstance(ctx, QStandardItem):
-                self.setItem(row, i, ctx)
-            elif isinstance(ctx, QPushButton):
-                pass
-                # self.setCellWidget(row, i, ctx)
-            else:
-                raise TypeError
 
     # commands
     def createOneLine(self, filename: str, check: bool = False) -> bool:
@@ -79,7 +80,7 @@ class ViewModel(QStandardItemModel,vbao.ViewModel):
             return False
 
         new_one = TableItem(filename)
-        self.addTableRow(self.rowCount(), new_one.toTableWidgetItems())
+        self.addTableRow(self.rowCount(), new_one)
 
 
 class VMListener(vbao.PropertyListenerBase):
