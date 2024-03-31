@@ -1,6 +1,23 @@
+import logging
 import shlex, subprocess
 
 from .vbao_wrapper import vbao
+
+
+class CommandClear(vbao.CommandBaseWithOwner):
+    def execute(self):
+        self.owner.clear()
+
+
+class CommandSave(vbao.CommandBaseWithOwner):
+    def setParameter(self, filename, *args, **kwargs):
+        self.args = [filename]
+
+    def execute(self):
+        if self.args is not None:
+            self.owner.saveData(self.args[0])
+        else:
+            logging.error("Save command called without a path.")
 
 
 class CommandTryAddClass(vbao.CommandBaseWithOwner):

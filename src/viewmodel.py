@@ -15,7 +15,6 @@ from .vbao_wrapper import vbao
 from .table_item import TableItem, TableItemChecklist
 from .model import Model
 from .vm_commands import *
-from .common import getFileIcon
 
 
 class ViewModel(QStandardItemModel, vbao.ViewModel):
@@ -28,6 +27,8 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
 
         self.model = Model()
 
+        self.setCommand("clear", CommandClear(self))
+        self.setCommand("save", CommandSave(self))
         self.setCommand("add_file", CommandTryAddClass(self))
 
     def init(self, start_load_path: str = ''):
@@ -42,6 +43,13 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         df = df.where(pd.notnull, None)
         # self.properties["df"] = df
         return df
+
+    def clear(self):
+        self.properties["current_df"] = pd.DataFrame()
+        self.onDataFrameChanged()
+
+    def saveData(self, filename):
+        self.model.save(self.getProperty("item_list"), filename)
 
     def onDataFrameChanged(self):
         df = self.getProperty("current_df")
