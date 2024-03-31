@@ -9,21 +9,15 @@ class CommandClear(vbao.CommandBaseWithOwner):
         self.owner.clear()
 
 
-class CommandSave(vbao.CommandBaseWithOwner):
-    def setParameter(self, filename, *args, **kwargs):
-        self.args = [filename]
-
+class CommandSave(vbao.CommandBaseWithOwner, vbao.CommandDirectCallMixin):
     def execute(self):
         if self.args is not None:
-            self.owner.saveData(self.args[0])
+            self.owner.saveData(*self.args)
         else:
             logging.error("Save command called without a path.")
 
 
-class CommandTryAddClass(vbao.CommandBaseWithOwner):
-    def setParameter(self, filename, *args, **kwargs):
-        self.args = [filename]
-
+class CommandTryAddClass(vbao.CommandBaseWithOwner, vbao.CommandDirectCallMixin):
     def execute(self):
         if self.args is not None:
             filename = self.args[0]
