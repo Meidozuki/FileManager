@@ -58,13 +58,14 @@ class CommandUpdateTags(CommandBaseWithOwner, CommandDirectCallMixin):
         self.owner.updateTags(self.row, self.tag)
 
 
-class CommandOpenFile(CommandBaseWithOwner):
-    def setParameter(self, *args, **kwargs):
-        self.open_program = 'explorer'
-        self.overload = None
+class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):
+    def setParameter(self, open_program, overload):
+        self.open_program = open_program
+        self.overload = overload
 
     def execute(self):
         args = [self.open_program] + shlex.split(self.overload)
+        print(args)
         result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.stderr:
             print(result.args)

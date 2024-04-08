@@ -18,6 +18,15 @@ from .table_item import TableItem
 
 def createQuickButtons(window):
     layout_h = QHBoxLayout()
+
+    button = QPushButton("Open folder")
+    button.clicked.connect(window.commandOpenFolder)
+    layout_h.addWidget(button)
+
+    button = QPushButton("Open")
+    layout_h.addWidget(button)
+    button.clicked.connect(window.commandOpenFile)
+
     test_button = QPushButton("test button")
     test_button.clicked.connect(window.testFn)
     layout_h.addWidget(test_button)
@@ -131,6 +140,23 @@ class MainWindow(QMainWindow, vbao.View):
         print(self.selectedOneRow)
 
     @Slot()
+    def commandOpenFolder(self):
+        if self.selectedOneRow:
+            row = self.selectedOneRow[1]
+            item = self.view.model().item(row, 2)
+            path = os.path.abspath(item.text() + '/..').replace('\\', '/')
+            # TODO:为什么这里用explorer就会跳到我的文档？？？ （替换为用start）
+            self.getCommand("open").directCall('powershell', 'start ' + path)
+
+    @Slot()
+    def commandOpenFile(self):
+        if self.selectedOneRow:
+            row = self.selectedOneRow[1]
+            item = self.view.model().item(row, 2)
+            path = item.text().replace('\\', '/')
+            self.getCommand("open").directCall('powershell', 'start ' + path)
+
+    @Slot()
     def commandAddNewFiles(self):
         # [from doc] If parent is not None, the dialog will be shown centered over the parent widget.
         names, category = QFileDialog.getOpenFileNames(None, "Select files to add")
@@ -141,13 +167,11 @@ class MainWindow(QMainWindow, vbao.View):
 
     @Slot()
     def commandUpdateImage(self):
-        name, category = QFileDialog.getOpenFileName(None, "Select preview image")
-        if name:
-            selected = self.selectedIndexes
-            if len(selected) != 1:
-                print("please select a row to update")
-                return
-            self.getCommand("update_image").directCall(*selected, name)
+        rows = self.selectedOneRow
+        if rows:
+            name, category = QFileDialog.getOpenFileName(None, "Select preview image")
+            if name:
+                self.getCommand("update_image").directCall(rows[1], name)
 
     @Slot()
     def commandSetTags(self):
@@ -156,10 +180,6 @@ class MainWindow(QMainWindow, vbao.View):
             tags, ok = QInputDialog.getText(self, "title", "Please input tags")
             if ok:
                 self.getCommand("update_tags").directCall(rows[1], tags)
-
-    @Slot()
-    def commandOpenFile(self):
-        selected_file = ''
 
 
 class ViewPropListener(vbao.PropertyListenerBase):
