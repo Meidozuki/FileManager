@@ -35,6 +35,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         self.setCommand("add_file", CommandAddTableRow(self))
         self.setCommand("update_image", CommandUpdatePreviewImage(self))
         self.setCommand("update_tags", CommandUpdateTags(self))
+        self.setCommand("open", CommandOpenFile(self))
 
     def init(self, start_load_path: str = ''):
         # make certain properties exist
