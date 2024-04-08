@@ -22,7 +22,7 @@ class MenuBar(QMenuBar):
             parent.addAction(action)
 
     def constructTableOpMenu(self):
-        file_menu = QMenu(u"File", self)
+        file_menu = QMenu(u"Table", self)
         self.addMenu(file_menu)
 
         names = [u"Save to...", u"Load from...", u"Clear"]
