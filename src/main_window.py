@@ -45,6 +45,10 @@ class MainWindow(QMainWindow, vbao.View):
     def selectedIndexes(self) -> set:
         return set([i.row() for i in self.view.selectedIndexes()])
 
+    @property
+    def save_format(self):
+        return self.getProperty('save_format')
+
     def getIndex(self, i, j):
         return self.view.model().index(i, j)
 
@@ -60,7 +64,7 @@ class MainWindow(QMainWindow, vbao.View):
         header_view.setDefaultSectionSize(100)
         self.view.setVerticalHeader(header_view)
 
-        # self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
     def updateDataFrame(self):
         for i, row_data in enumerate(self.getProperty('item_list')):
