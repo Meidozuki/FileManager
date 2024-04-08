@@ -2,14 +2,16 @@ import logging
 import shlex, subprocess
 
 from .vbao_wrapper import vbao
+CommandBaseWithOwner = vbao.CommandBaseWithOwner
+CommandDirectCallMixin = vbao.CommandDirectCallMixin
 
 
-class CommandClear(vbao.CommandBaseWithOwner):
+class CommandClear(CommandBaseWithOwner):
     def execute(self):
         self.owner.clear()
 
 
-class CommandSave(vbao.CommandBaseWithOwner, vbao.CommandDirectCallMixin):
+class CommandSave(CommandBaseWithOwner, CommandDirectCallMixin):
     def execute(self):
         if self.args is not None:
             self.owner.saveData(*self.args)
@@ -17,17 +19,34 @@ class CommandSave(vbao.CommandBaseWithOwner, vbao.CommandDirectCallMixin):
             logging.error("Save command called without a path.")
 
 
-class CommandTryAddClass(vbao.CommandBaseWithOwner, vbao.CommandDirectCallMixin):
+class CommandLoad(CommandBaseWithOwner, CommandDirectCallMixin):
+    def execute(self):
+        if self.args is not None:
+            # means it is not from Clear commands
+            self.owner.triggerCommandNotifications("clear", 0)
+            filename = self.args[0]
+            self.owner.loadData(filename)
+        else:
+            logging.error("Save command called without a path.")
+
+
+class CommandAddTableRow(CommandBaseWithOwner, CommandDirectCallMixin):
     def execute(self):
         if self.args is not None:
             filename = self.args[0]
-            success = self.owner.createOneLine(filename)
-            self.owner.triggerCommandNotifications("add_new", success)
+            self.owner.createOneLine(filename)
 
             self.args = None
 
+class CommandUpdatePreviewImage(CommandBaseWithOwner, CommandDirectCallMixin):
+    def setParameter(self, row:int, image:str):
+        self.row = row
+        self.image = image
 
-class CommandOpenFile(vbao.CommandBaseWithOwner):
+    def execute(self):
+        self.owner.updateImage(self.row, self.image)
+
+class CommandOpenFile(CommandBaseWithOwner):
     def setParameter(self, *args, **kwargs):
         self.open_program = 'explorer'
         self.overload = None

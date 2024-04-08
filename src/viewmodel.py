@@ -5,7 +5,7 @@ import pandas as pd
 from PySide6.QtCore import QSize, Qt, Slot, QFileInfo
 from PySide6.QtWidgets import (
     QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
-    )
+)
 from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QStandardItemModel, QStandardItem
 )
@@ -26,30 +26,36 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         super().__init__(parent)
 
         self.model = Model()
+        self.setListener(vbao.DummyPropListener())
 
         self.setCommand("clear", CommandClear(self))
         self.setCommand("save", CommandSave(self))
-        self.setCommand("add_file", CommandTryAddClass(self))
+        self.setCommand("load", CommandLoad(self))
+        self.setCommand("add_file", CommandAddTableRow(self))
+        self.setCommand("update_image", CommandUpdatePreviewImage(self))
 
     def init(self, start_load_path: str = ''):
-        self._df = self.loadData(start_load_path)
-        print(self._df)
-        self.setProperty_vbao("current_df", self._df)
-        self.onDataFrameChanged()
+        # make certain properties exist
+        self.loadData(start_load_path)
 
     def loadData(self, filename):
         """load data from disk"""
         df = self.model.load(filename)
         df = df.where(pd.notnull, None)
-        # self.properties["df"] = df
+        self.setProperty_vbao("current_df", df)
+        self.onDataFrameChanged()
         return df
 
     def clear(self):
         self.properties["current_df"] = pd.DataFrame()
         self.onDataFrameChanged()
+        self.triggerCommandNotifications("clear", True)
 
     def saveData(self, filename):
-        self.model.save(self.getProperty("item_list"), filename)
+        if self.model.save(self.getProperty("item_list"), filename) is None:
+            self.triggerCommandNotifications("save", False)
+        else:
+            self.triggerCommandNotifications("save", True)
 
     def onDataFrameChanged(self):
         df = self.getProperty("current_df")
@@ -71,6 +77,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
                   'full_name': lambda: QStandardItem(item.full_name),
                   'short_name_icon': lambda: QStandardItem(item.icon, item.short_name),
                   'icon': lambda: QStandardItem(item.icon, ''),
+                  'tags': lambda: QStandardItem(str(item.tags)),
                   'empty': lambda: QStandardItem()
                   }
 
@@ -88,9 +95,17 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
             return False
 
         new_one = TableItem(filename)
+        ls = self.getProperty_vbao("item_list")
+        ls.append(new_one)
         self.addTableRow(self.rowCount(), new_one)
+        self.triggerCommandNotifications("add_new", True)
 
-
-class VMListener(vbao.PropertyListenerBase):
-    def onPropertyChanged(self, prop_name: str):
-        pass
+    def updateImage(self, row, image_path):
+        ls = self.getProperty_vbao("item_list")
+        if row < len(ls):
+            item: TableItem = ls[row]
+            success = item.setDisplay(image_path)
+            self.triggerPropertyNotifications('current_df')
+            self.triggerCommandNotifications("update_image", success)
+        else:
+            self.triggerCommandNotifications("update_image", False)
