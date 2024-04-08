@@ -57,11 +57,15 @@ class TableItem:
     def __str__(self):
         return f'TableItem("{self._filename}")'
 
-    # save
-    def toRecord(self):
+    def recordMapping(self):
         mapping = {'filename': self._filename,
                    'display_image': self._display,
                    'tags': ', '.join(self.tags)}
+        return mapping
+
+    # save
+    def toRecord(self):
+        mapping = self.recordMapping()
         return pd.DataFrame(mapping.values(), mapping.keys()).T
 
     @classmethod

@@ -2,6 +2,7 @@ import os, sys
 from typing import *
 
 import numpy as np
+import pandas as pd
 from abc import ABC
 
 from PySide6.QtCore import QSize, Qt, Slot, QFileInfo
@@ -18,7 +19,15 @@ from src import table_item, open_button, menu_bar, model
 
 
 if __name__ == '__main__':
-    vbao.use_easydict()
+    # ls = [ [] for _ in range(10)]
+    # for i in range(10):
+    #     ls[i].append(i)
+    #     ls[i].append(np.random.randint(10))
+    # df = pd.DataFrame([ls]).T
+    # print(df)
+    # print(df[df[0].apply(lambda x: 4 in x)])
+
+
     app = QApplication(sys.argv)
 
     # t = model.Model()

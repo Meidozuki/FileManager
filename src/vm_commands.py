@@ -2,6 +2,7 @@ import logging
 import shlex, subprocess
 
 from .vbao_wrapper import vbao
+
 CommandBaseWithOwner = vbao.CommandBaseWithOwner
 CommandDirectCallMixin = vbao.CommandDirectCallMixin
 
@@ -38,13 +39,24 @@ class CommandAddTableRow(CommandBaseWithOwner, CommandDirectCallMixin):
 
             self.args = None
 
+
 class CommandUpdatePreviewImage(CommandBaseWithOwner, CommandDirectCallMixin):
-    def setParameter(self, row:int, image:str):
+    def setParameter(self, row: int, image: str):
         self.row = row
         self.image = image
 
     def execute(self):
         self.owner.updateImage(self.row, self.image)
+
+
+class CommandUpdateTags(CommandBaseWithOwner, CommandDirectCallMixin):
+    def setParameter(self, row: int, tag: str):
+        self.row = row
+        self.tag = tag
+
+    def execute(self):
+        self.owner.updateTags(self.row, self.tag)
+
 
 class CommandOpenFile(CommandBaseWithOwner):
     def setParameter(self, *args, **kwargs):

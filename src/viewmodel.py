@@ -20,6 +20,7 @@ from .vm_commands import *
 class ViewModel(QStandardItemModel, vbao.ViewModel):
     """
     viewmodel存储从dataframe转化而来的信息
+    item_list 存储总共的、用于保存的信息
     """
 
     def __init__(self, parent=None, ):
@@ -33,38 +34,40 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         self.setCommand("load", CommandLoad(self))
         self.setCommand("add_file", CommandAddTableRow(self))
         self.setCommand("update_image", CommandUpdatePreviewImage(self))
+        self.setCommand("update_tags", CommandUpdateTags(self))
 
     def init(self, start_load_path: str = ''):
         # make certain properties exist
-        self.loadData(start_load_path)
+        df = self.loadData(start_load_path)
+        self.setProperty_vbao("item_list", TableItem.fromRecords(df))
         self.setProperty_vbao('save_format', self.model.save_format)
 
     def loadData(self, filename):
         """load data from disk"""
         df = self.model.load(filename)
         df = df.where(pd.notnull, None)
-        self.setProperty_vbao("current_df", df)
-        self.onDataFrameChanged()
+
+        shape = df.shape
+        self.setRowCount(shape[0])
+        if shape[0] > 0:
+            df["tags"] = df["tags"].apply(lambda s: s.split(", "))
+
+        self.setProperty_vbao('item_list', TableItem.fromRecords(df))
+        self.onDataChanged()
         return df
 
     def clear(self):
-        self.properties["current_df"] = pd.DataFrame()
-        self.onDataFrameChanged()
+        self.onDataChanged()
         self.triggerCommandNotifications("clear", True)
 
     def saveData(self, filename):
-        if self.model.save(self.getProperty("item_list"), filename) is None:
-            self.triggerCommandNotifications("save", False)
-        else:
+        if self.model.save(self.getProperty("item_list"), filename) is not None:
             self.triggerCommandNotifications("save", True)
+        else:
+            self.triggerCommandNotifications("save", False)
 
-    def onDataFrameChanged(self):
-        df = self.getProperty("current_df")
-        shape = df.shape
-        self.setRowCount(shape[0])
-
-        mediate = TableItem.fromRecords(df)
-        self.setProperty_vbao("item_list", mediate)
+    def onDataChanged(self):
+        mediate = self.getProperty("item_list")
         if mediate:
             col_count = mediate[0].expected_cols
             if self.columnCount() < col_count:
@@ -72,6 +75,8 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
 
             for i, data in enumerate(mediate):
                 self.addTableRow(i, data)
+
+            self.triggerPropertyNotifications("items")
 
     def addTableRow(self, idx, item: TableItem):
         viewer = {'short_name': lambda: QStandardItem(item.short_name),
@@ -88,8 +93,6 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
                 fn = viewer[check.name]
                 self.setItem(idx, check.col, fn())
 
-        self.triggerPropertyNotifications("current_df")
-
     # commands
     def createOneLine(self, filename: str, check: bool = False) -> bool:
         if check and not os.path.exists(filename):
@@ -99,6 +102,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         ls = self.getProperty_vbao("item_list")
         ls.append(new_one)
         self.addTableRow(self.rowCount(), new_one)
+        self.triggerPropertyNotifications("items")
         self.triggerCommandNotifications("add_new", True)
 
     def updateImage(self, row, image_path):
@@ -106,7 +110,12 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         if row < len(ls):
             item: TableItem = ls[row]
             success = item.setDisplay(image_path)
-            self.triggerPropertyNotifications('current_df')
+            self.triggerPropertyNotifications('items')
             self.triggerCommandNotifications("update_image", success)
         else:
             self.triggerCommandNotifications("update_image", False)
+
+    def updateTags(self, row, tags):
+        tags = tags.replace(', ', ',').split(',')
+        self.getProperty_vbao("item_list")[row].tags = tags
+        self.onDataChanged()

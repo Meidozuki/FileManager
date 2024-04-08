@@ -1,10 +1,10 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple
 
 from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QModelIndex
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
+    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog,
     QTableWidget, QTableWidgetItem, QHeaderView, QTableView, QAbstractItemView)
 from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
@@ -14,6 +14,26 @@ from .vbao_wrapper import vbao
 from .viewmodel import ViewModel
 from .menu_bar import MenuBar
 from .table_item import TableItem
+
+
+def createQuickButtons(window):
+    layout_h = QHBoxLayout()
+    test_button = QPushButton("test button")
+    test_button.clicked.connect(window.testFn)
+    layout_h.addWidget(test_button)
+
+    button = QPushButton("add")
+    button.clicked.connect(window.commandAddNewFiles)
+    layout_h.addWidget(button)
+
+    button = QPushButton("set image")
+    button.clicked.connect(window.commandUpdateImage)
+    layout_h.addWidget(button)
+
+    button = QPushButton("set tags")
+    button.clicked.connect(window.commandSetTags)
+    layout_h.addWidget(button)
+    return layout_h
 
 
 class MainWindow(QMainWindow, vbao.View):
@@ -46,6 +66,16 @@ class MainWindow(QMainWindow, vbao.View):
         return set([i.row() for i in self.view.selectedIndexes()])
 
     @property
+    def selectedOneRow(self) -> Union[bool, Tuple[bool, int]]:
+        """
+        return only False when invalid, to simplify if statement
+        """
+        if len(self.selectedIndexes) != 1:
+            return False
+        else:
+            return True, list(self.selectedIndexes)[0]
+
+    @property
     def save_format(self):
         return self.getProperty('save_format')
 
@@ -66,7 +96,9 @@ class MainWindow(QMainWindow, vbao.View):
 
         self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-    def updateDataFrame(self):
+        self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+
+    def updateData(self):
         for i, row_data in enumerate(self.getProperty('item_list')):
             pixmap = row_data.getPreviewImage()
             if pixmap is not None:
@@ -80,18 +112,7 @@ class MainWindow(QMainWindow, vbao.View):
         """need setLayout() to reparent"""
         outer_v = QVBoxLayout()
 
-        inner_h = QHBoxLayout()
-        test_button = QPushButton("test button")
-        test_button.clicked.connect(self.testFn)
-        inner_h.addWidget(test_button)
-
-        button = QPushButton("add")
-        button.clicked.connect(self.commandAddNewFiles)
-        inner_h.addWidget(button)
-
-        button = QPushButton("set image")
-        button.clicked.connect(self.commandUpdateImage)
-        inner_h.addWidget(button)
+        inner_h = createQuickButtons(self)
 
         outer_v.addLayout(inner_h)
         outer_v.addWidget(self.view)
@@ -104,9 +125,10 @@ class MainWindow(QMainWindow, vbao.View):
 
         menu1.addAction(QAction("sub1", menu1))
 
+    # button slots
     @Slot()
     def testFn(self):
-        print(self.view.selectedIndexes())
+        print(self.selectedOneRow)
 
     @Slot()
     def commandAddNewFiles(self):
@@ -128,6 +150,14 @@ class MainWindow(QMainWindow, vbao.View):
             self.getCommand("update_image").directCall(*selected, name)
 
     @Slot()
+    def commandSetTags(self):
+        rows = self.selectedOneRow
+        if rows:
+            tags, ok = QInputDialog.getText(self, "title", "Please input tags")
+            if ok:
+                self.getCommand("update_tags").directCall(rows[1], tags)
+
+    @Slot()
     def commandOpenFile(self):
         selected_file = ''
 
@@ -135,8 +165,8 @@ class MainWindow(QMainWindow, vbao.View):
 class ViewPropListener(vbao.PropertyListenerBase):
     def onPropertyChanged(self, prop_name: str):
         match prop_name:
-            case 'current_df':
-                self.master.updateDataFrame()
+            case 'items':
+                self.master.updateData()
             case _:
                 print('uncaught prop ' + prop_name)
 

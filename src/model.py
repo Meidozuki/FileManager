@@ -1,6 +1,6 @@
-
 import os
 import logging
+import numpy as np
 import pandas as pd
 from typing import List
 
@@ -13,6 +13,7 @@ class Model(vbao.Model):
     """
     model用来与磁盘交互，此处实现为无状态的工具类
     """
+
     def __init__(self):
         super().__init__()
         self.file_filters = {
@@ -35,10 +36,7 @@ class Model(vbao.Model):
         if len(data) == 0:
             return None
 
-        df = data[0].toRecord()
-        for r in data[1:]:
-            df = pd.concat([df, r.toRecord()], copy=False)
-        df = df.reset_index()
+        df = self.changeItemToDf(data)
         df.to_csv(save_dir)
         return df
 
@@ -48,4 +46,28 @@ class Model(vbao.Model):
             return pd.DataFrame()
 
         df = pd.read_csv(save_dir)
+        print(df)
         return df
+
+    def prune(self, df: pd.DataFrame, *, testing_keys=None):
+        temp = TableItem('')
+        keys = temp.recordMapping().keys()
+        if testing_keys is not None:
+            keys = testing_keys
+
+        for k in keys:
+            if k not in df:
+                df[k] = None
+
+        return df[keys]
+
+    def changeItemToDf(self, data: List[TableItem]):
+        if len(data) == 0:
+            return pd.DataFrame()
+
+        cols = data[0].recordMapping().keys()
+        arr = np.stack([list(item.recordMapping().values()) for item in data])
+        return pd.DataFrame(
+            arr,
+            columns=cols
+        )
