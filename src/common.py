@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional
 
 from PySide6.QtCore import QSize, QFileInfo
@@ -14,3 +15,12 @@ def getFileIcon(filename: str) -> Optional[QIcon]:
         return provider.icon(QFileInfo(filename))
     else:
         return None
+
+
+def setupOneFileCategory(name: str, suffix: list):
+    suffix = ["*." + re.sub(r'^[\*]*\.', '', s) for s in suffix]
+    return f"{name} ({' '.join(suffix)})"
+
+
+def joinFileCategories(categories: list):
+    return ';;'.join(categories)

@@ -37,6 +37,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     def init(self, start_load_path: str = ''):
         # make certain properties exist
         self.loadData(start_load_path)
+        self.setProperty_vbao('save_format', self.model.save_format)
 
     def loadData(self, filename):
         """load data from disk"""

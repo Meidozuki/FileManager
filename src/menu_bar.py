@@ -3,9 +3,9 @@ from typing import *
 
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QFileDialog,
-    QWidget, QPushButton, QLabel)
-from PySide6.QtGui import QIcon, QPixmap, QImage, QAction
+    QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QFileDialog,
+    )
+from PySide6.QtGui import QAction
 
 
 class MenuBar(QMenuBar):
@@ -31,13 +31,13 @@ class MenuBar(QMenuBar):
 
     @Slot()
     def trySaveCommand(self):
-        path, category = QFileDialog.getSaveFileName(self, "Save file")
+        path, category = QFileDialog.getSaveFileName(self, "Save file", filter=self.parent().save_format)
         if path:
             self.parent().getCommand("save").directCall(path)
 
     @Slot()
     def tryLoadCommand(self):
-        path, category = QFileDialog.getOpenFileName(self, "Load file")
+        path, category = QFileDialog.getOpenFileName(self, "Load file", filter=self.parent().save_format)
         if path:
             self.parent().getCommand("load").directCall(path)
 

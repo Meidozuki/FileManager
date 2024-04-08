@@ -5,6 +5,7 @@ import pandas as pd
 from typing import List
 
 from .vbao_wrapper import vbao
+from .common import setupOneFileCategory, joinFileCategories
 from .table_item import TableItem
 
 
@@ -14,6 +15,21 @@ class Model(vbao.Model):
     """
     def __init__(self):
         super().__init__()
+        self.file_filters = {
+            'image': 'jpg,png',
+            'csv': 'csv',
+            'all': '*'
+        }
+
+    def getCategory(self, name):
+        return (name, self.file_filters[name].split(','))
+
+    @property
+    def save_format(self):
+        return joinFileCategories([
+            setupOneFileCategory(*self.getCategory('csv')),
+            setupOneFileCategory(*self.getCategory('all'))
+        ])
 
     def save(self, data: List[TableItem], save_dir: str):
         if len(data) == 0:
