@@ -21,6 +21,7 @@ class MainWindow(QMainWindow, vbao.View):
         super().__init__()
 
         self.prop_listener = ViewPropListener(self)
+        self.cmd_listener = ViewCmdListener(self)
 
         self.setWindowTitle("Hello Qt")
         self.resize(QSize(800, 600))
@@ -38,18 +39,22 @@ class MainWindow(QMainWindow, vbao.View):
         self.setCentralWidget(self.table_layout)
 
         vbao.App.bind(self.viewmodel.model, self.viewmodel, self, True)
-        self.viewmodel.init('temp/temp')
+        self.viewmodel.init()
+
+    @property
+    def selectedIndexes(self) -> set:
+        return set([i.row() for i in self.view.selectedIndexes()])
 
     def getIndex(self, i, j):
         return self.view.model().index(i, j)
 
     def setIndexWidget(self, i, j, widget: QWidget):
-        self.view.setIndexWidget(self.getIndex(i,j), widget)
+        self.view.setIndexWidget(self.getIndex(i, j), widget)
 
     def setupTableView(self):
         self.view.setModel(self.viewmodel)
 
-        self.view.setIconSize(QSize(30,30))
+        self.view.setIconSize(QSize(30, 30))
 
         header_view = QHeaderView(Qt.Orientation.Vertical, None)
         header_view.setDefaultSectionSize(100)
@@ -67,8 +72,6 @@ class MainWindow(QMainWindow, vbao.View):
             else:
                 self.viewmodel.setItem(i, 1, QStandardItem("None"))
 
-
-
     def createTableLayout(self):
         """need setLayout() to reparent"""
         outer_v = QVBoxLayout()
@@ -76,11 +79,14 @@ class MainWindow(QMainWindow, vbao.View):
         inner_h = QHBoxLayout()
         test_button = QPushButton("test button")
         test_button.clicked.connect(self.testFn)
+        inner_h.addWidget(test_button)
 
         button = QPushButton("add")
         button.clicked.connect(self.commandAddNewFiles)
+        inner_h.addWidget(button)
 
-        inner_h.addWidget(test_button)
+        button = QPushButton("set image")
+        button.clicked.connect(self.commandUpdateImage)
         inner_h.addWidget(button)
 
         outer_v.addLayout(inner_h)
@@ -102,11 +108,20 @@ class MainWindow(QMainWindow, vbao.View):
     def commandAddNewFiles(self):
         # [from doc] If parent is not None, the dialog will be shown centered over the parent widget.
         names, category = QFileDialog.getOpenFileNames(None, "Select files to add")
-        # QFileDialog.getSaveFileName()
 
         if names:
             for name in names:
                 self.getCommand("add_file").directCall(name)
+
+    @Slot()
+    def commandUpdateImage(self):
+        name, category = QFileDialog.getOpenFileName(None, "Select preview image")
+        if name:
+            selected = self.selectedIndexes
+            if len(selected) != 1:
+                print("please select a row to update")
+                return
+            self.getCommand("update_image").directCall(*selected, name)
 
     @Slot()
     def commandOpenFile(self):
@@ -119,4 +134,12 @@ class ViewPropListener(vbao.PropertyListenerBase):
             case 'current_df':
                 self.master.updateDataFrame()
             case _:
-                print('uncaught prop '+prop_name)
+                print('uncaught prop ' + prop_name)
+
+
+class ViewCmdListener(vbao.CommandListenerBase):
+    def onCommandComplete(self, cmd_name: str, success: bool):
+        print(f"Command {cmd_name} success:{success}")
+        match cmd_name:
+            case 'clear':
+                self.master.view.reset()

@@ -35,11 +35,9 @@ class TableItemChecklist:
         uncertain = None
         ModelRole = 'model'
         ViewRole = 'view'
-        SelfRole = 'self'
 
     ModelRole = ItemRole.ModelRole
     ViewRole = ItemRole.ViewRole
-    SelfRole = ItemRole.SelfRole
 
     def __init__(self, name: str, col: int, role: ItemRole | str):
         self.name = name
@@ -85,13 +83,12 @@ class TableItem:
         else:
             logging.warning(f"You are trying to add a non-existing file {filename}")
 
-    def setDisplay(self, display_filename: str | None):
-        if display_filename is None:
-            return
-        if os.path.exists(display_filename):
-            self._display = display_filename
+    def setDisplay(self, display_filename: str | None) -> bool:
+        if display_filename is None or not os.path.exists(display_filename):
+            return False
         else:
-            raise FileNotFoundError(display_filename)
+            self._display = display_filename
+            return True
 
     def setTags(self, tags):
         if tags is None or not isinstance(tags, (str, list)):
@@ -130,8 +127,8 @@ class TableItem:
             TableItemChecklist('short_name_icon', 0, model_role),
             TableItemChecklist('preview', 1, view_role),
             TableItemChecklist('full_name', 2, model_role),
-            TableItemChecklist('icon', 3, model_role),
-            TableItemChecklist('empty', 4, model_role),
+            TableItemChecklist('tags', 3, model_role),
+            TableItemChecklist('icon', 4, model_role),
         ]
         return ls
 
