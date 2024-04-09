@@ -108,14 +108,19 @@ class MainWindow(QMainWindow, vbao.View):
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
     def updateData(self):
-        for i, row_data in enumerate(self.getProperty('item_list')):
+        ls = self.getProperty("item_list")
+        index = self.getProperty_vbao("filter_index")
+        if index is None:
+            index = range(len(ls))
+        for row, idx in enumerate(index):
+            row_data = ls[idx]
             pixmap = row_data.getPreviewImage()
             if pixmap is not None:
                 preview_image = QLabel()
                 preview_image.setPixmap(pixmap)
-                self.setIndexWidget(i, 1, preview_image)
+                self.setIndexWidget(row, 1, preview_image)
             else:
-                self.viewmodel.setItem(i, 1, QStandardItem("None"))
+                self.viewmodel.setItem(row, 1, QStandardItem("None"))
 
     def createTableLayout(self):
         """need setLayout() to reparent"""

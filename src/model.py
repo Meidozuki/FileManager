@@ -46,7 +46,6 @@ class Model(vbao.Model):
             return pd.DataFrame()
 
         df = pd.read_csv(save_dir)
-        print(df)
         return df
 
     def prune(self, df: pd.DataFrame, *, testing_keys=None):

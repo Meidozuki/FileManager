@@ -2,12 +2,11 @@ import os
 import logging
 import pandas as pd
 
-from PySide6.QtCore import QSize, Qt, Slot, QFileInfo
 from PySide6.QtWidgets import (
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog,
+    QWidget
 )
 from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QStandardItemModel, QStandardItem
+    QStandardItemModel, QStandardItem
 )
 
 from .vbao_wrapper import vbao
@@ -35,13 +34,17 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         self.setCommand("add_file", CommandAddTableRow(self))
         self.setCommand("update_image", CommandUpdatePreviewImage(self))
         self.setCommand("update_tags", CommandUpdateTags(self))
+        self.setCommand("filter_tags", CommandFilterTags(self))
+        self.setCommand("clear_filters", CommandClearTagFilters(self))
         self.setCommand("open", CommandOpenFile(self))
 
     def init(self, start_load_path: str = ''):
-        # make certain properties exist
-        df = self.loadData(start_load_path)
-        self.setProperty_vbao("item_list", TableItem.fromRecords(df))
+        self.clear()
         self.setProperty_vbao('save_format', self.model.save_format)
+        if os.path.exists(start_load_path):
+            df = self.loadData(start_load_path)
+            df = self.model.prune(df)
+            self.setProperty_vbao("item_list", TableItem.fromRecords(df))
 
     def loadData(self, filename):
         """load data from disk"""
@@ -58,6 +61,8 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         return df
 
     def clear(self):
+        self.setProperty_vbao("filter_index", None)
+        self.setProperty_vbao("item_list", [])
         self.onDataChanged()
         self.triggerCommandNotifications("clear", True)
 
@@ -68,14 +73,19 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
             self.triggerCommandNotifications("save", False)
 
     def onDataChanged(self):
-        mediate = self.getProperty("item_list")
-        if mediate:
-            col_count = mediate[0].expected_cols
+        ls = self.getProperty("item_list")
+        index = self.getProperty_vbao("filter_index")
+        if index is None:
+            index = range(len(ls))
+
+        if ls:
+            self.setRowCount(len(index))
+            col_count = ls[0].expected_cols
             if self.columnCount() < col_count:
                 self.setColumnCount(col_count)
 
-            for i, data in enumerate(mediate):
-                self.addTableRow(i, data)
+            for row, idx in enumerate(index):
+                self.addTableRow(row, ls[idx])
 
             self.triggerPropertyNotifications("items")
 
@@ -119,4 +129,12 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     def updateTags(self, row, tags):
         tags = tags.replace(', ', ',').split(',')
         self.getProperty_vbao("item_list")[row].tags = tags
+        self.onDataChanged()
+
+    def filterTag(self, tag):
+        df = self.model.changeItemToDf(self.getProperty_vbao("item_list"))
+        print(f"before filter tag {tag}, length is {df.shape[0]}")
+        df = df[df["tags"].apply(lambda ls: tag in ls)]
+        print(f"after filter tag {tag}, length is {df.shape[0]}")
+        self.setProperty_vbao("filter_index", df.index)
         self.onDataChanged()
