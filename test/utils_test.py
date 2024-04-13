@@ -6,6 +6,7 @@ import pandas as pd
 sys.path.append(os.path.abspath('..'))
 
 from src.common import *
+from src.model import Model
 
 
 def test_QFileDialog_format_1():
@@ -26,3 +27,13 @@ def test_QFileDialog_format_multi():
     ]
     output = joinFileCategories(ls)
     assert output == "Images (*.png *.xpm *.jpg);;Text files (*.txt);;XML files (*.xml)"
+
+
+def test_model_config():
+    model = Model()
+    d = model.config
+    model.saveConfig()
+    assert os.path.exists('config.json')
+
+    model.loadConfig()
+    assert d == model.config

@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 import numpy as np
 import pandas as pd
@@ -16,11 +17,18 @@ class Model(vbao.Model):
 
     def __init__(self):
         super().__init__()
+
         self.file_filters = {
             'image': 'jpg,png',
             'csv': 'csv',
             'all': '*'
         }
+
+        self.default_config = {
+            'temp_dir': 'savedata',
+            'version': 0.1
+        }
+        self.config = self.default_config
 
     def getCategory(self, name):
         """
@@ -35,6 +43,32 @@ class Model(vbao.Model):
             setupOneFileCategory(*self.getCategory('all'))
         ])
 
+    @property
+    def temp_dir(self) -> str:
+        path = self.config["temp_dir"]
+        if not os.path.exists(path):
+            logging.info(f"temp dir {path} not exist, will mkdir")
+            os.mkdir(path)
+        return path
+
+    # configure
+    def saveConfig(self):
+        with open('config.json', 'w') as f:
+            json.dump(self.config, f)
+
+    def loadConfig(self, path='config.json'):
+        if os.path.exists(path):
+            with open('config.json', 'r') as f:
+                ctx = f.readlines()
+            logging.info("read config.json:\n", ctx)
+            self.config.update(json.loads('\n'.join(ctx)))
+            logging.info(f"loaded config at {path}")
+        elif path == 'config.json':
+            logging.info("cannot find config.json, use default config")
+        else:
+            logging.warning(f"cannot find config file at {path}")
+
+    # stateless operations
     def save(self, data: List[TableItem], save_dir: str):
         if len(data) == 0:
             return None

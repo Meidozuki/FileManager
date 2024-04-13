@@ -88,6 +88,10 @@ class MainWindow(QMainWindow, vbao.View):
     def save_format(self):
         return self.getProperty('save_format')
 
+    @property
+    def temp_dir(self):
+        return self.getProperty("temp_dir")
+
     def getIndex(self, i, j):
         return self.view.model().index(i, j)
 

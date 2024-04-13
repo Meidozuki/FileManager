@@ -55,13 +55,15 @@ class MenuBar(QMenuBar):
 
     @Slot()
     def trySaveCommand(self):
-        path, category = QFileDialog.getSaveFileName(self, "Save file", filter=self.parent().save_format)
+        path, category = QFileDialog.getSaveFileName(self, "Save file", self.parent().temp_dir,
+                                                     filter=self.parent().save_format)
         if path:
             self.parent().getCommand("save").directCall(path)
 
     @Slot()
     def tryLoadCommand(self):
-        path, category = QFileDialog.getOpenFileName(self, "Load file", filter=self.parent().save_format)
+        path, category = QFileDialog.getOpenFileName(self, "Load file", self.parent().temp_dir,
+                                                     filter=self.parent().save_format)
         if path:
             self.parent().getCommand("load").directCall(path)
 

@@ -1,4 +1,5 @@
 import os, sys
+import logging
 from typing import *
 
 import numpy as np
@@ -15,27 +16,12 @@ from PySide6.QtGui import (
 )
 
 from src import MainWindow, vbao
-from src import table_item, open_button, menu_bar, model
+from src import table_item, model
 
 
 if __name__ == '__main__':
-    # ls = [ [] for _ in range(10)]
-    # for i in range(10):
-    #     ls[i].append(i)
-    #     ls[i].append(np.random.randint(10))
-    # df = pd.DataFrame([ls]).T
-    # print(df)
-    # print(df[df[0].apply(lambda x: 4 in x)])
-
-
+    logging.getLogger('root').setLevel(logging.INFO)
     app = QApplication(sys.argv)
-
-    # t = model.Model()
-    # df = t.load('temp/temp')
-    # print(df)
-    # print(df.shape)
-    # print(table_item.TableItem.fromRecords(df))
-
 
     window = MainWindow()
     window.show()

@@ -1,5 +1,7 @@
 import os
 import logging
+
+import numpy as np
 import pandas as pd
 
 from PySide6.QtWidgets import (
@@ -39,8 +41,11 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         self.setCommand("open", CommandOpenFile(self))
 
     def init(self, start_load_path: str = ''):
+        self.model.loadConfig()
+
         self.clear()
-        self.setProperty_vbao('save_format', self.model.save_format)
+        self.setProperty_vbao("temp_dir", self.model.temp_dir)
+        self.setProperty_vbao("save_format", self.model.save_format)
         if os.path.exists(start_load_path):
             df = self.loadData(start_load_path)
             df = self.model.prune(df)
@@ -49,7 +54,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     def loadData(self, filename):
         """load data from disk"""
         df = self.model.load(filename)
-        df = df.where(pd.notnull, None)
+        # print(df)
 
         shape = df.shape
         self.setRowCount(shape[0])
@@ -78,8 +83,8 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         if index is None:
             index = range(len(ls))
 
+        self.setRowCount(len(index))
         if ls:
-            self.setRowCount(len(index))
             col_count = ls[0].expected_cols
             if self.columnCount() < col_count:
                 self.setColumnCount(col_count)
