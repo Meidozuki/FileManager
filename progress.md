@@ -27,6 +27,6 @@ v0.2 roadmap
 
 1. 增加working dir，文件路径用偏移量表示
 2. 增加添加文件夹功能
-3. 对于失效文件的处理，目前直接报错，不显示
-4. 增加config.json和savedata目录
+3. ~~对于失效文件的处理，目前直接报错，不显示~~
+4. ~~增加config.json~~和savedata目录
 

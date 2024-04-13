@@ -2,7 +2,8 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-from typing import Optional, Tuple, List
+from functools import cache
+from typing import Optional, Tuple, List, Iterable
 from PIL import Image, ImageQt
 
 
@@ -128,7 +129,7 @@ class TableItem:
 
     # to table view
     @property
-    def checklist(self) -> List[TableItemChecklist]:
+    def _unchecked_table_list(self) -> List[TableItemChecklist]:
         model_role, view_role = TableItemChecklist.ModelRole, TableItemChecklist.ViewRole
         ls = [
             TableItemChecklist('short_name_icon', 0, model_role),
@@ -140,14 +141,26 @@ class TableItem:
         return ls
 
     @property
-    def expected_cols(self):
-        return len(self.checklist)
+    def checklist(self) -> Iterable[TableItemChecklist]:
+        d = dict((i.name, i) for i in self._unchecked_table_list)
 
-    # etc
-    def check(self) -> bool:
+        # checking
         if not os.path.exists(self._filename):
-            return False
-        if self._display is not None and not os.path.exists(self._display):
-            return False
+            # file not exist, only keep short & fullname
+            for k in d.keys():
+                d[k].name = 'empty'
+            d['short_name_icon'].name = 'short_name'
+            d['full_name'].name = 'full_name'
+            logging.info(f"[TableItem:checklist] file not exist: {self._filename}")
+        elif self._display is not None and not os.path.exists(self._display):
+            d['preview'].name = 'empty'
+            logging.info(f"[TableItem:checklist] display image set but not exist: {self._display}")
+        elif self.icon is None:
+            d['short_name_icon'].name = 'short_name'
+            d['icon'].name = 'empty'
+        return d.values()
 
-        return True
+    @property
+    @cache
+    def expected_cols(self):
+        return len(self._unchecked_table_list)
