@@ -78,12 +78,17 @@ class Model(vbao.Model):
         return df
 
     def load(self, save_dir: str):
+        def fillNanAsNone(df):
+            for col in df.columns:
+                df[col] = df[col].apply(lambda x: x if not pd.isna(x) else None)
+            return df
+
         if not os.path.exists(save_dir):
             logging.warning(f"Save file not found at {save_dir}. If you run this program the first time, ignore this.")
             return pd.DataFrame()
 
         df = pd.read_csv(save_dir)
-        return df
+        return fillNanAsNone(df)
 
     def prune(self, df: pd.DataFrame, *, testing_keys=None):
         temp = TableItem('')

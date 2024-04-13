@@ -88,6 +88,9 @@ class TableItem:
             logging.warning(f"You are trying to add a non-existing file {filename}")
 
     def setDisplay(self, display_filename: str | None) -> bool:
+        if display_filename is not None and not isinstance(display_filename, str):
+            raise TypeError(f"receive {type(display_filename)} {display_filename}")
+
         if display_filename is None or not os.path.exists(display_filename):
             return False
         else:

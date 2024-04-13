@@ -54,12 +54,12 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     def loadData(self, filename):
         """load data from disk"""
         df = self.model.load(filename)
-        # print(df)
+        print(df)
 
         shape = df.shape
         self.setRowCount(shape[0])
         if shape[0] > 0:
-            df["tags"] = df["tags"].apply(lambda s: s.split(", "))
+            df["tags"] = df["tags"].apply(lambda s: s.split(", ") if s else [])
 
         self.setProperty_vbao('item_list', TableItem.fromRecords(df))
         self.onDataChanged()
