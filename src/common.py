@@ -18,9 +18,19 @@ def getFileIcon(filename: str) -> Optional[QIcon]:
 
 
 def setupOneFileCategory(name: str, suffix: list):
+    """
+    convert to QFileDialog format
+    example: setupOneFileCategory('image', ['jpg','png'])
+    :param name: file category
+    :param suffix: a list, contains file suffixes
+    """
     suffix = ["*." + re.sub(r'^[\*]*\.', '', s) for s in suffix]
     return f"{name} ({' '.join(suffix)})"
 
 
 def joinFileCategories(categories: list):
+    """
+    concatenate multiple file filters for QFileDialog
+    :param categories: QFileDialog format from setupOneFileCategory()
+    """
     return ';;'.join(categories)

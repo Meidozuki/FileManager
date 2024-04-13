@@ -23,6 +23,9 @@ class Model(vbao.Model):
         }
 
     def getCategory(self, name):
+        """
+        get categories from self.file_filters, need be converted to QFileDialog format
+        """
         return (name, self.file_filters[name].split(','))
 
     @property
