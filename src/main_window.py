@@ -12,37 +12,8 @@ from PySide6.QtGui import (
 
 from .vbao_wrapper import vbao
 from .viewmodel import ViewModel
-from .menu_bar import MenuBar
+from .ui import MenuBar, createQuickButtons
 from .table_item import TableItem
-
-
-def createQuickButtons(window):
-    layout_h = QHBoxLayout()
-
-    button = QPushButton("Open folder")
-    button.clicked.connect(window.commandOpenFolder)
-    layout_h.addWidget(button)
-
-    button = QPushButton("Open")
-    layout_h.addWidget(button)
-    button.clicked.connect(window.commandOpenFile)
-
-    test_button = QPushButton("test button")
-    test_button.clicked.connect(window.testFn)
-    layout_h.addWidget(test_button)
-
-    button = QPushButton("add")
-    button.clicked.connect(window.commandAddNewFiles)
-    layout_h.addWidget(button)
-
-    button = QPushButton("set image")
-    button.clicked.connect(window.commandUpdateImage)
-    layout_h.addWidget(button)
-
-    button = QPushButton("set tags")
-    button.clicked.connect(window.commandSetTags)
-    layout_h.addWidget(button)
-    return layout_h
 
 
 class MainWindow(QMainWindow, vbao.View):
@@ -62,10 +33,8 @@ class MainWindow(QMainWindow, vbao.View):
         self.view = QTableView()
         self.setupTableView()
 
-        self.table_layout = QWidget(self)
-        self.table_layout.setLayout(self.createTableLayout())
-
-        self.setCentralWidget(self.table_layout)
+        self.layout_widget = self.createTableLayout()
+        self.setCentralWidget(self.layout_widget)
 
         vbao.App.bind(self.viewmodel.model, self.viewmodel, self, True)
         self.viewmodel.init()
@@ -127,21 +96,21 @@ class MainWindow(QMainWindow, vbao.View):
                 self.viewmodel.setItem(row, 1, QStandardItem("None"))
 
     def createTableLayout(self):
-        """need setLayout() to reparent"""
+        """setLayout() will auto parent"""
+        parent = QWidget(self)
+
         outer_v = QVBoxLayout()
 
         inner_h = createQuickButtons(self)
+        label = QLabel("Current directory: ")
+        label.setObjectName("work dir display")
 
         outer_v.addLayout(inner_h)
         outer_v.addWidget(self.view)
-        return outer_v
+        outer_v.addWidget(label)
 
-    def prepareMenuBar(self):
-        menu1 = QMenu(self.menu_bar)
-        menu1.setTitle("menu1")
-        self.menu_bar.addMenu(menu1)
-
-        menu1.addAction(QAction("sub1", menu1))
+        parent.setLayout(outer_v)
+        return parent
 
     # button slots
     @Slot()
@@ -153,7 +122,7 @@ class MainWindow(QMainWindow, vbao.View):
         if self.selectedOneRow:
             row = self.selectedOneRow[1]
             item = self.view.model().item(row, 2)
-            path = os.path.abspath(item.text() + '/..').replace('\\', '/')
+            path = os.path.abspath(item.text() + '/..')
             # TODO:为什么这里用explorer就会跳到我的文档？？？ （替换为用start）
             self.getCommand("open").directCall('powershell', 'start ' + path)
 
@@ -162,7 +131,7 @@ class MainWindow(QMainWindow, vbao.View):
         if self.selectedOneRow:
             row = self.selectedOneRow[1]
             item = self.view.model().item(row, 2)
-            path = item.text().replace('\\', '/')
+            path = item.text()
             self.getCommand("open").directCall('powershell', 'start ' + path)
 
     @Slot()
@@ -196,6 +165,9 @@ class ViewPropListener(vbao.PropertyListenerBase):
         match prop_name:
             case 'items':
                 self.master.updateData()
+            case 'work_dir':
+                label = self.master.layout_widget.findChild(QLabel, "work dir display")
+                label.setText("Current directory: " + self.master.getProperty("work_dir"))
             case _:
                 print('uncaught prop ' + prop_name)
 

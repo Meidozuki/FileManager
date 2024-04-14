@@ -26,6 +26,7 @@ class Model(vbao.Model):
 
         self.default_config = {
             'temp_dir': 'savedata',
+            'auto_show_image_file': True,
             'version': 0.1
         }
         self.config = self.default_config

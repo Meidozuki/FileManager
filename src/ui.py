@@ -1,12 +1,42 @@
+import logging
 from easydict import EasyDict
 from functools import wraps
 from typing import *
 
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QFileDialog, QInputDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QFileDialog, QInputDialog, QPushButton
 )
 from PySide6.QtGui import QAction
+
+
+def createQuickButtons(window):
+    layout_h = QHBoxLayout()
+
+    button = QPushButton("Open folder")
+    button.clicked.connect(window.commandOpenFolder)
+    layout_h.addWidget(button)
+
+    button = QPushButton("Open")
+    layout_h.addWidget(button)
+    button.clicked.connect(window.commandOpenFile)
+
+    button = QPushButton("add")
+    button.clicked.connect(window.commandAddNewFiles)
+    layout_h.addWidget(button)
+
+    button = QPushButton("set image")
+    button.clicked.connect(window.commandUpdateImage)
+    layout_h.addWidget(button)
+
+    button = QPushButton("set tags")
+    button.clicked.connect(window.commandSetTags)
+    layout_h.addWidget(button)
+
+    test_button = QPushButton("test button")
+    test_button.clicked.connect(window.testFn)
+    layout_h.addWidget(test_button)
+    return layout_h
 
 
 class MenuBar(QMenuBar):
@@ -18,19 +48,19 @@ class MenuBar(QMenuBar):
             0: EasyDict({
                 "menu_name": u"Table",
                 "sub_actions": [
-                    u"Save to...", u"Load from...", u"Clear",
+                    u"Change work dir", u"------",u"Save to...", u"Load from...", u"Clear",
                 ],
                 "callbacks": [
-                    self.trySaveCommand, self.tryLoadCommand, self.clearCommand
+                    self.cdCommand, self.emptyCallback, self.trySaveCommand, self.tryLoadCommand, self.clearCommand
                 ]
             }),
             1: EasyDict({
                 "menu_name": u"Filter",
                 "sub_actions": [
-                    u"Filter tags", u"Clear filters", "test"
+                    u"Filter tags", u"Clear filters"
                 ],
                 "callbacks": [
-                    self.filterTagCommand, self.clearFilterCommand, None
+                    self.filterTagCommand, self.clearFilterCommand
                 ]
             }),
         }
@@ -51,7 +81,11 @@ class MenuBar(QMenuBar):
             menu = QMenu(menu_item.menu_name, self)
             self.addMenu(menu)
 
-            createSubmenu(menu, menu_item.sub_actions, menu_item.callbacks)
+            act, cb = menu_item.sub_actions, menu_item.callbacks
+            if len(act) != len(cb):
+                logging.warning(f"menu {menu.title()}'s actions and callbacks do not match, are\n"
+                                f"{act}\nand {cb}")
+            createSubmenu(menu, act, cb)
 
     @Slot()
     def trySaveCommand(self):
@@ -70,6 +104,11 @@ class MenuBar(QMenuBar):
     @Slot()
     def clearCommand(self):
         self.parent().runCommand("clear")
+
+    @Slot()
+    def cdCommand(self):
+        path: str = QFileDialog.getExistingDirectory(None)
+        self.parent().getCommand("change_dir").directCall(path)
 
     @Slot()
     def filterTagCommand(self):

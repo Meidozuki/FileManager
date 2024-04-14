@@ -16,10 +16,11 @@ from PySide6.QtGui import (
 )
 
 from src import MainWindow, vbao
-from src import table_item, model
+from src import table_item, model, vm_commands
 
 
 if __name__ == '__main__':
+
     logging.getLogger('root').setLevel(logging.INFO)
     app = QApplication(sys.argv)
 

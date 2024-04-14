@@ -6,7 +6,6 @@ from functools import cache
 from typing import Optional, Tuple, List, Iterable
 from PIL import Image, ImageQt
 
-
 from PySide6.QtWidgets import (
     QWidget, QPushButton, QLabel)
 from PySide6.QtGui import QIcon, QPixmap, QImage, QStandardItem
@@ -47,6 +46,8 @@ class TableItemChecklist:
 
 
 class TableItem:
+    supported_image_format = ['.jpg', '.png']
+
     def __init__(self, filename: str = None):
         super().__init__()
 
@@ -89,14 +90,26 @@ class TableItem:
             logging.warning(f"You are trying to add a non-existing file {filename}")
 
     def setDisplay(self, display_filename: str | None) -> bool:
+        """
+        :param display_filename: If None, clear the display setting
+        :return: if filename is not None and not exists, return False, else True
+        """
         if display_filename is not None and not isinstance(display_filename, str):
             raise TypeError(f"receive {type(display_filename)} {display_filename}")
 
-        if display_filename is None or not os.path.exists(display_filename):
+        if display_filename is None:
+            self._display = ''
+            return True
+        elif not os.path.exists(display_filename):
             return False
         else:
             self._display = display_filename
             return True
+
+    def autoDetectImage(self):
+        if os.path.exists(self._filename):
+            if os.path.splitext(self._filename)[1] in self.supported_image_format:
+                self._display = self._filename
 
     def setTags(self, tags):
         if tags is None or not isinstance(tags, (str, list)):
@@ -113,7 +126,7 @@ class TableItem:
         return os.path.split(self._filename)[1]
 
     @property
-    def full_name(self):
+    def abs_path(self):
         return os.path.abspath(self._filename)
 
     @property
@@ -134,9 +147,9 @@ class TableItem:
         ls = [
             TableItemChecklist('short_name_icon', 0, model_role),
             TableItemChecklist('preview', 1, view_role),
-            TableItemChecklist('full_name', 2, model_role),
-            TableItemChecklist('tags', 3, model_role),
-            TableItemChecklist('icon', 4, model_role),
+            TableItemChecklist('tags', 2, model_role),
+            TableItemChecklist('rela_path', 3, model_role),
+            TableItemChecklist('abs_path', 4, model_role),
         ]
         return ls
 
@@ -150,7 +163,7 @@ class TableItem:
             for k in d.keys():
                 d[k].name = 'empty'
             d['short_name_icon'].name = 'short_name'
-            d['full_name'].name = 'full_name'
+            d['abs_path'].name = 'abs_path'
             logging.info(f"[TableItem:checklist] file not exist: {self._filename}")
         elif self._display is not None and not os.path.exists(self._display):
             d['preview'].name = 'empty'

@@ -24,21 +24,25 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     item_list 存储总共的、用于保存的信息
     """
 
+    # initialize
     def __init__(self, parent=None, ):
         super().__init__(parent)
 
         self.model = Model()
         self.setListener(vbao.DummyPropListener())
 
-        self.setCommand("clear", CommandClear(self))
-        self.setCommand("save", CommandSave(self))
-        self.setCommand("load", CommandLoad(self))
-        self.setCommand("add_file", CommandAddTableRow(self))
-        self.setCommand("update_image", CommandUpdatePreviewImage(self))
-        self.setCommand("update_tags", CommandUpdateTags(self))
-        self.setCommand("filter_tags", CommandFilterTags(self))
-        self.setCommand("clear_filters", CommandClearTagFilters(self))
-        self.setCommand("open", CommandOpenFile(self))
+        self.registerCommands({
+            "clear": CommandClear(self),
+            "save": CommandSave(self),
+            "load": CommandLoad(self),
+            "add_file": CommandAddTableRow,
+            "update_image": CommandUpdatePreviewImage,
+            "update_tags": CommandUpdateTags,
+            "filter_tags": CommandFilterTags,
+            "clear_filters": CommandClearTagFilters,
+            "open": CommandOpenFile,
+            "change_dir": CommandCD,
+        })
 
     def init(self, start_load_path: str = ''):
         self.model.loadConfig()
@@ -51,6 +55,25 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
             df = self.model.prune(df)
             self.setProperty_vbao("item_list", TableItem.fromRecords(df))
 
+        self.setProperty_vbao("work_dir", os.getcwd())
+        self.triggerPropertyNotifications("work_dir")
+
+    def clear(self):
+        self.setProperty_vbao("filter_index", None)
+        self.setProperty_vbao("item_list", [])
+        self.onDataChanged()
+        self.triggerCommandNotifications("clear", True)
+
+    # property
+    @property
+    def config(self):
+        return self.model.config
+
+    @property
+    def work_dir(self):
+        return self.getProperty("work_dir")
+
+    # save/load
     def loadData(self, filename):
         """load data from disk"""
         df = self.model.load(filename)
@@ -64,12 +87,6 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         self.setProperty_vbao('item_list', TableItem.fromRecords(df))
         self.onDataChanged()
         return df
-
-    def clear(self):
-        self.setProperty_vbao("filter_index", None)
-        self.setProperty_vbao("item_list", [])
-        self.onDataChanged()
-        self.triggerCommandNotifications("clear", True)
 
     def saveData(self, filename):
         if self.model.save(self.getProperty("item_list"), filename) is not None:
@@ -90,14 +107,18 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
                 self.setColumnCount(col_count)
 
             for row, idx in enumerate(index):
-                self.addTableRow(row, ls[idx])
+                item: TableItem = ls[idx]
+                if self.config["auto_show_image_file"]:
+                    item.autoDetectImage()
+                self.addTableRow(row, item)
 
             self.triggerPropertyNotifications("items")
 
     def addTableRow(self, idx, item: TableItem):
         viewer = {'short_name': lambda: QStandardItem(item.short_name),
-                  'full_name': lambda: QStandardItem(item.full_name),
                   'short_name_icon': lambda: QStandardItem(item.icon, item.short_name),
+                  'rela_path': lambda: QStandardItem(os.path.relpath(item.abs_path, self.work_dir)),
+                  'abs_path': lambda: QStandardItem(item.abs_path),
                   'icon': lambda: QStandardItem(item.icon, ''),
                   'tags': lambda: QStandardItem(str(item.tags)),
                   'empty': lambda: QStandardItem()
@@ -143,3 +164,26 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
         print(f"after filter tag {tag}, length is {df.shape[0]}")
         self.setProperty_vbao("filter_index", df.index)
         self.onDataChanged()
+
+    def changeWorkDir(self, new_dir: str):
+        assert os.path.exists(new_dir)
+
+        # collect file info before change
+        valid_items, invalid_items = [], []
+        for item in self.getProperty_vbao("item_list"):
+            if os.path.exists(item.abs_path):
+                valid_items.append(item)
+            else:
+                invalid_items.append(item)
+
+        # try to move invalid items
+        for item in invalid_items:
+            rela = os.path.relpath(item.abs_path, self.work_dir)
+            new_path = os.path.abspath(os.path.join(new_dir, rela))
+            if os.path.exists(new_path):
+                item.setFilename(new_path, force=True)
+
+        # update work_dir
+        self.setProperty_vbao("work_dir", new_dir)
+        self.onDataChanged()
+        self.triggerPropertyNotifications("work_dir")

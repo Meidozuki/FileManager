@@ -70,7 +70,8 @@ class CommandClearTagFilters(CommandBaseWithOwner):
 class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):
     def setParameter(self, open_program, overload):
         self.open_program = open_program
-        self.overload = overload
+        # 重要，不转换斜杠会报错
+        self.overload = overload.replace("\\", "/")
 
     def execute(self):
         # todo: 路径有空格会报错，加上引号即可
@@ -80,3 +81,7 @@ class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):
         if result.stderr:
             print(result.args)
             print(result.stderr)
+
+class CommandCD(CommandBaseWithOwner, CommandDirectCallMixin):
+    def execute(self):
+        self.owner.changeWorkDir(self.args[0])
