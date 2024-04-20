@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 
@@ -14,6 +15,7 @@ from PySide6.QtGui import (
 from .vbao_wrapper import vbao
 # import vbao
 from .table_item import TableItem, TableItemChecklist
+from .common import changeFileExt
 from .model import Model
 from .vm_commands import *
 
@@ -76,6 +78,7 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
     # save/load
     def loadData(self, filename):
         """load data from disk"""
+        # process data
         df = self.model.load(filename)
         print(df)
 
@@ -85,11 +88,30 @@ class ViewModel(QStandardItemModel, vbao.ViewModel):
             df["tags"] = df["tags"].apply(lambda s: s.split(", ") if s else [])
 
         self.setProperty_vbao('item_list', TableItem.fromRecords(df))
+
+        # process env
+        json_name = changeFileExt(filename, 'json')
+        if os.path.exists(json_name):
+            with open(json_name, 'r') as f:
+                d = json.load(f)
+
+            work_dir = d["work_dir"]
+            if os.path.exists(work_dir):
+                self.setProperty_vbao("work_dir", work_dir)
+                self.triggerPropertyNotifications("work_dir")
+
         self.onDataChanged()
         return df
 
+    def _getWorkEnv(self):
+        return {
+            "work_dir": self.work_dir
+        }
+
     def saveData(self, filename):
         if self.model.save(self.getProperty("item_list"), filename) is not None:
+            with open(changeFileExt(filename, 'json'), 'w') as f:
+                json.dump(self._getWorkEnv(), f)
             self.triggerCommandNotifications("save", True)
         else:
             self.triggerCommandNotifications("save", False)

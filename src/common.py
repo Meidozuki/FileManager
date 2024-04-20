@@ -17,6 +17,17 @@ def getFileIcon(filename: str) -> Optional[QIcon]:
         return None
 
 
+def changeFileExt(filename: str, new_ext: str):
+    """
+    eg. changeFileExt('1.jpg', 'json') -> 1.json
+    :param filename:
+    :param new_ext:
+    :return:
+    """
+    new_ext = new_ext.replace('.', '')
+    return os.path.splitext(filename)[0] + '.' + new_ext
+
+
 def setupOneFileCategory(name: str, suffix: list):
     """
     convert to QFileDialog format

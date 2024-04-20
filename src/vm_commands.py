@@ -24,6 +24,7 @@ class CommandLoad(CommandBaseWithOwner, CommandDirectCallMixin):
     def execute(self):
         if self.args is not None:
             filename = self.args[0]
+            self.owner.clear()
             self.owner.loadData(filename)
         else:
             logging.error("Save command called without a path.")
