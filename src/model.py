@@ -10,7 +10,7 @@ from .common import setupOneFileCategory, joinFileCategories
 from .table_item import TableItem
 
 
-class Model(vbao.Model):
+class Model(vbao.core.Model):
     """
     model用来与磁盘交互，此处实现为无状态的工具类
     """

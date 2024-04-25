@@ -16,7 +16,7 @@ from .ui import MenuBar, createQuickButtons
 from .table_item import TableItem
 
 
-class MainWindow(QMainWindow, vbao.View):
+class MainWindow(QMainWindow, vbao.core.View):
     def __init__(self):
         super().__init__()
 
@@ -36,7 +36,7 @@ class MainWindow(QMainWindow, vbao.View):
         self.layout_widget = self.createTableLayout()
         self.setCentralWidget(self.layout_widget)
 
-        vbao.App.bind(self.viewmodel.model, self.viewmodel, self, True)
+        vbao.core.App.bind(self.viewmodel.model, self.viewmodel, self, True)
         self.viewmodel.init()
 
     @property

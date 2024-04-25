@@ -20,7 +20,7 @@ from .model import Model
 from .vm_commands import *
 
 
-class ViewModel(QStandardItemModel, vbao.ViewModel):
+class ViewModel(QStandardItemModel, vbao.core.ViewModel):
     """
     viewmodel存储从dataframe转化而来的信息
     item_list 存储总共的、用于保存的信息
