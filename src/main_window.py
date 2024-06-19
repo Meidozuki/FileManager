@@ -4,7 +4,7 @@ from typing import List, Optional, Union, Tuple
 from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QModelIndex
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog,
+    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog, QDialog,
     QTableWidget, QTableWidgetItem, QHeaderView, QTableView, QAbstractItemView)
 from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
@@ -115,7 +115,9 @@ class MainWindow(QMainWindow, vbao.core.View):
     # button slots
     @Slot()
     def testFn(self):
-        print(self.selectedOneRow)
+        print('test fn')
+        widget = QDialog(self)
+        widget.exec_()
 
     @Slot()
     def commandOpenFolder(self):

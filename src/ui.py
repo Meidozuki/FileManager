@@ -9,19 +9,24 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction
 
+from i18n import LOCTEXT
 
 def createQuickButtons(window):
+    def button_with_text(text:str):
+        button = QPushButton()
+        button.setText(text)
+        return button
     layout_h = QHBoxLayout()
 
-    button = QPushButton("add")
+    button = button_with_text(LOCTEXT(u'添加文件'))
     button.clicked.connect(window.commandAddNewFiles)
     layout_h.addWidget(button)
 
-    button = QPushButton("set image")
+    button = button_with_text(LOCTEXT(u'设置预览图'))
     button.clicked.connect(window.commandUpdateImage)
     layout_h.addWidget(button)
 
-    button = QPushButton("set tags")
+    button = button_with_text(LOCTEXT(u'设置标签'))
     button.clicked.connect(window.commandSetTags)
     layout_h.addWidget(button)
 
@@ -29,11 +34,11 @@ def createQuickButtons(window):
     test_button.clicked.connect(window.testFn)
     layout_h.addWidget(test_button)
 
-    button = QPushButton("Open folder")
+    button = button_with_text(LOCTEXT(u'打开所在文件夹'))
     button.clicked.connect(window.commandOpenFolder)
     layout_h.addWidget(button)
 
-    button = QPushButton("Open")
+    button = button_with_text(LOCTEXT(u'打开文件'))
     layout_h.addWidget(button)
     button.clicked.connect(window.commandOpenFile)
     return layout_h
@@ -46,7 +51,7 @@ class MenuBar(QMenuBar):
 
         self.menu_table = {
             0: EasyDict({
-                "menu_name": u"Table",
+                "menu_name": LOCTEXT(u'表格操作'),
                 "sub_actions": [
                     u"Change work dir", u"------",u"Save to...", u"Load from...", u"Clear",
                 ],

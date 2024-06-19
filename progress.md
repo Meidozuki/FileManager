@@ -31,3 +31,5 @@ v0.2 roadmap
 4. ~~增加config.json~~和savedata目录
 5. ~~自动检测图片~~
 
+1. 中英文翻译(Qt环境无法使用全局变量，考虑换成gettext)
+2. 新窗口实现文件夹同步
