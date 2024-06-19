@@ -13,14 +13,6 @@ from PySide6.QtGui import QAction
 def createQuickButtons(window):
     layout_h = QHBoxLayout()
 
-    button = QPushButton("Open folder")
-    button.clicked.connect(window.commandOpenFolder)
-    layout_h.addWidget(button)
-
-    button = QPushButton("Open")
-    layout_h.addWidget(button)
-    button.clicked.connect(window.commandOpenFile)
-
     button = QPushButton("add")
     button.clicked.connect(window.commandAddNewFiles)
     layout_h.addWidget(button)
@@ -36,6 +28,14 @@ def createQuickButtons(window):
     test_button = QPushButton("test button")
     test_button.clicked.connect(window.testFn)
     layout_h.addWidget(test_button)
+
+    button = QPushButton("Open folder")
+    button.clicked.connect(window.commandOpenFolder)
+    layout_h.addWidget(button)
+
+    button = QPushButton("Open")
+    layout_h.addWidget(button)
+    button.clicked.connect(window.commandOpenFile)
     return layout_h
 
 

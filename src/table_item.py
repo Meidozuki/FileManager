@@ -98,7 +98,7 @@ class TableItem:
             raise TypeError(f"receive {type(display_filename)} {display_filename}")
 
         if display_filename is None:
-            self._display = ''
+            self._display = None
             return True
         elif not os.path.exists(display_filename):
             return False
@@ -135,6 +135,7 @@ class TableItem:
 
     def getPreviewImage(self) -> Optional[QPixmap]:
         if self._display is not None:
+            # _display不存在的情况由checklist检查
             pil_image = readImage(self._display, self.image_size)
             return ImageQt.toqpixmap(pil_image)
         else:

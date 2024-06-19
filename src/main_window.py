@@ -121,8 +121,10 @@ class MainWindow(QMainWindow, vbao.core.View):
     def commandOpenFolder(self):
         if self.selectedOneRow:
             row = self.selectedOneRow[1]
-            item = self.view.model().item(row, 2)
-            path = os.path.abspath(item.text() + '/..')
+            # todo 这里写死了之后不能和abspath同步
+            item = self.view.model().item(row, 4)
+            path = item.text()
+            path = os.path.abspath(path + '/..')
             # TODO:为什么这里用explorer就会跳到我的文档？？？ （替换为用start）
             self.getCommand("open").directCall('powershell', 'start ' + path)
 
