@@ -15,7 +15,7 @@ from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QAction, QStandardItemModel
 )
 
-from src import MainWindow, vbao
+from src import MainWindow, vbao, NavigatorWindow
 from src import table_item, model, vm_commands
 
 
@@ -24,7 +24,8 @@ if __name__ == '__main__':
     logging.getLogger('root').setLevel(logging.INFO)
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    # window = MainWindow()
+    window = NavigatorWindow()
     window.show()
 
     app.exec()
