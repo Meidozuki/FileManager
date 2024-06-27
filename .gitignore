@@ -161,6 +161,7 @@ cython_debug/
 
 VBAO/
 upx-*/
+bfg*.jar
 
 temp/
 savedata/

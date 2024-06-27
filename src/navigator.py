@@ -6,16 +6,15 @@ from PySide6.QtCore import QObject, QSize, Qt, Slot, QCoreApplication
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
     QWidget, QPushButton, QLabel, QFileDialog, QInputDialog, QDialog, QSizePolicy)
-from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
-)
+from PySide6.QtGui import QImage, QAction
 
 from .main_window import MainWindow
+from submodules import WindowRenameSuffix
 
 _navigator_table = [
     # key, display text, class
     ["default", u"MainWindow", MainWindow],
-    ["rename", u"重命名文件后缀", object],
+    ["rename", u"重命名文件后缀", WindowRenameSuffix],
     ["1", "1", object],
     ["2", "2", object],
 ]
@@ -104,6 +103,7 @@ class NavigatorWindow(QMainWindow):
             if issubclass(cls, QMainWindow):
                 window = cls()
                 window.show()
+                self.link = window  # 保持引用计数，否则会在离开函数时被gc
                 self.close()
-        return inner
 
+        return Slot()(inner)
