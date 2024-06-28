@@ -13,8 +13,8 @@ from submodules import WindowRenameSuffix
 
 _navigator_table = [
     # key, display text, class
-    ["default", u"MainWindow", MainWindow],
-    ["rename", u"重命名文件后缀", WindowRenameSuffix],
+    ["default", "MainWindow", MainWindow],
+    ["rename", "重命名文件后缀", WindowRenameSuffix],
     ["1", "1", object],
     ["2", "2", object],
 ]
@@ -43,9 +43,9 @@ class NavigatorWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setObjectName(u"Navigator")
+        self.setObjectName("Navigator")
         self.setWindowTitle(QCoreApplication.translate(
-            "Hello", u"Hello"
+            "Hello", "Hello"
         ))
 
         self.central_widget = QWidget(self)

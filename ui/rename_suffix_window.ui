@@ -17,10 +17,10 @@
    <widget class="QWidget" name="layout_widget" native="true">
     <property name="geometry">
      <rect>
-      <x>100</x>
-      <y>60</y>
+      <x>90</x>
+      <y>30</y>
       <width>600</width>
-      <height>450</height>
+      <height>501</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="vertical_layout">
@@ -141,7 +141,7 @@
      <item>
       <layout class="QHBoxLayout" name="option_layout">
        <item>
-        <widget class="QLabel" name="label">
+        <widget class="QLabel" name="option_hint">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -157,6 +157,30 @@
         <widget class="QCheckBox" name="placeholder">
          <property name="text">
           <string>enabled</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="hint_label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Tips: </string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="hint_text">
+         <property name="text">
+          <string>Text</string>
          </property>
         </widget>
        </item>
@@ -200,6 +224,12 @@
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+   </widget>
+   <addaction name="menuHelp"/>
   </widget>
  </widget>
  <resources/>

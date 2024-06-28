@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QAction, QStandardItemModel
 )
+import PySide6.QtPdf
 
 from src import MainWindow, vbao, NavigatorWindow
 from src import table_item, model, vm_commands

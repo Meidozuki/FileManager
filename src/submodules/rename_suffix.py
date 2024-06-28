@@ -1,32 +1,26 @@
-import os
 import logging
+import os
 from glob import glob
 
-from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QModelIndex
+from PySide6.QtCore import Slot
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu, QSizePolicy,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog, QDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView, QTableView, QAbstractItemView, QCheckBox)
-from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
-)
+    QMainWindow, QFileDialog, QTableWidgetItem, QCheckBox, QHeaderView)
 
 from ui.ui_ren_suf import Ui_RenameSuffixWindow
 
 _default_options = {
     'enabled': False,
     'append': True,
-    'empty': False,
 }
 
 _key_mapping = {
-    'enabled': 'enabled',
-    'append': u'后缀附加而不是替换',
-    'empty': u'此框是个装饰'
+    'enabled': '执行而不是预览',
+    'append': '后缀附加而不是替换',
+    'empty': '此框是个装饰'
 }
 
 
-class KeyTranslationHelper:
+class _KeyTranslationHelper:
     @classmethod
     def get(cls, key):
         return _key_mapping[key] if key in _key_mapping else key
@@ -56,11 +50,34 @@ class WindowRenameSuffix(QMainWindow):
             box = self.create_check_box(key)
             self.option_layout.addWidget(box)
 
-        # table
+        # preview text
+        self.preview_text = self.ui.hint_text
+        self.update_preview_text()
+
+        # preview table
         self.table = self.ui.table
         self.setup_table_view()
         self.ui.exec_button.clicked.connect(self.rename_logic)
         print(self.logic_arguments)
+
+    @property
+    def old_pattern(self):
+        return self.ui.old_pattern.toPlainText()
+
+    @property
+    def new_pattern(self):
+        return self.ui.new_pattern.toPlainText()
+
+    @property
+    def full_pattern(self):
+        return os.path.join(self._cur_dir, self.old_pattern)
+
+    @property
+    def logic_arguments(self):
+        d = {'append': self.findChild(QCheckBox, 'append').isChecked(),
+             'dry_run': not self.findChild(QCheckBox, 'enabled').isChecked()
+             }
+        return d
 
     def set_dir(self, new_dir: str):
         if os.path.exists(new_dir):
@@ -74,13 +91,19 @@ class WindowRenameSuffix(QMainWindow):
         new_dir = QFileDialog.getExistingDirectory(self)
         if new_dir:
             self.set_dir(new_dir)
+            self.update_preview_text()
 
     def create_check_box(self, key) -> QCheckBox:
         checkbox = QCheckBox(self)
         checkbox.setObjectName(key)
-        checkbox.setText(KeyTranslationHelper.get(key))
+        checkbox.setText(_KeyTranslationHelper.get(key))
         checkbox.setChecked(_default_options[key])
         return checkbox
+
+    @Slot()
+    def update_preview_text(self):
+        s = f"将会对所有符合 '{self.full_pattern}' 格式的文件进行重命名."
+        self.preview_text.setText(s)
 
     def setup_table_view(self):
         self.table.setHorizontalHeaderLabels(['old name', 'new name'])
@@ -94,13 +117,6 @@ class WindowRenameSuffix(QMainWindow):
         self.table.clearContents()
         self.table.setRowCount(1)
         self.table.setItem(0, 0, QTableWidgetItem("Invalid regex pattern!"))
-
-    @property
-    def logic_arguments(self):
-        d = {}
-        d['append'] = self.findChild(QCheckBox, 'append').isChecked()
-        d['dry_run'] = not self.findChild(QCheckBox, 'enabled').isChecked()
-        return d
 
     @Slot()
     def rename_logic(self):
@@ -126,8 +142,7 @@ class WindowRenameSuffix(QMainWindow):
                 os.rename(path, new_name)
             return new_name
 
-        old_pat = self.ui.old_pattern.toPlainText()
-        new_pat = self.ui.new_pattern.toPlainText()
+        old_pat, new_pat = self.old_pattern, self.new_pattern
         print(f"Try to rename pattern '{old_pat}' to '{new_pat}' under folder {self._cur_dir}")
 
         # 未输入时不工作

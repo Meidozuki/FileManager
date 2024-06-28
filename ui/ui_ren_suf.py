@@ -11,14 +11,15 @@
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
     QMetaObject, QObject, QPoint, QRect,
     QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+    QCursor, QFont, QFontDatabase, QGradient,
+    QIcon, QImage, QKeySequence, QLinearGradient,
+    QPainter, QPalette, QPixmap, QRadialGradient,
+    QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QHeaderView,
-    QLabel, QLayout, QMainWindow, QMenuBar,
-    QPlainTextEdit, QPushButton, QSizePolicy, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget)
+    QLabel, QLayout, QMainWindow, QMenu,
+    QMenuBar, QPlainTextEdit, QPushButton, QSizePolicy,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_RenameSuffixWindow(object):
     def setupUi(self, RenameSuffixWindow):
@@ -29,7 +30,7 @@ class Ui_RenameSuffixWindow(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.layout_widget = QWidget(self.centralwidget)
         self.layout_widget.setObjectName(u"layout_widget")
-        self.layout_widget.setGeometry(QRect(100, 60, 600, 450))
+        self.layout_widget.setGeometry(QRect(90, 30, 600, 501))
         self.vertical_layout = QVBoxLayout(self.layout_widget)
         self.vertical_layout.setObjectName(u"vertical_layout")
         self.regex_input_layout = QHBoxLayout()
@@ -115,12 +116,12 @@ class Ui_RenameSuffixWindow(object):
 
         self.option_layout = QHBoxLayout()
         self.option_layout.setObjectName(u"option_layout")
-        self.label = QLabel(self.layout_widget)
-        self.label.setObjectName(u"label")
-        sizePolicy3.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
-        self.label.setSizePolicy(sizePolicy3)
+        self.option_hint = QLabel(self.layout_widget)
+        self.option_hint.setObjectName(u"option_hint")
+        sizePolicy3.setHeightForWidth(self.option_hint.sizePolicy().hasHeightForWidth())
+        self.option_hint.setSizePolicy(sizePolicy3)
 
-        self.option_layout.addWidget(self.label)
+        self.option_layout.addWidget(self.option_hint)
 
         self.placeholder = QCheckBox(self.layout_widget)
         self.placeholder.setObjectName(u"placeholder")
@@ -129,6 +130,23 @@ class Ui_RenameSuffixWindow(object):
 
 
         self.vertical_layout.addLayout(self.option_layout)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.hint_label = QLabel(self.layout_widget)
+        self.hint_label.setObjectName(u"hint_label")
+        sizePolicy3.setHeightForWidth(self.hint_label.sizePolicy().hasHeightForWidth())
+        self.hint_label.setSizePolicy(sizePolicy3)
+
+        self.horizontalLayout.addWidget(self.hint_label)
+
+        self.hint_text = QLabel(self.layout_widget)
+        self.hint_text.setObjectName(u"hint_text")
+
+        self.horizontalLayout.addWidget(self.hint_text)
+
+
+        self.vertical_layout.addLayout(self.horizontalLayout)
 
         self.exec_button = QPushButton(self.layout_widget)
         self.exec_button.setObjectName(u"exec_button")
@@ -152,7 +170,11 @@ class Ui_RenameSuffixWindow(object):
         self.menubar = QMenuBar(RenameSuffixWindow)
         self.menubar.setObjectName(u"menubar")
         self.menubar.setGeometry(QRect(0, 0, 800, 21))
+        self.menuHelp = QMenu(self.menubar)
+        self.menuHelp.setObjectName(u"menuHelp")
         RenameSuffixWindow.setMenuBar(self.menubar)
+
+        self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(RenameSuffixWindow)
 
@@ -166,8 +188,11 @@ class Ui_RenameSuffixWindow(object):
         self.curdir_hint.setText(QCoreApplication.translate("RenameSuffixWindow", u"Cur Dir: ", None))
         self.curdir_label.setText(QCoreApplication.translate("RenameSuffixWindow", u"curdir_example", None))
         self.chdir_button.setText(QCoreApplication.translate("RenameSuffixWindow", u"chdir", None))
-        self.label.setText(QCoreApplication.translate("RenameSuffixWindow", u"Options: ", None))
+        self.option_hint.setText(QCoreApplication.translate("RenameSuffixWindow", u"Options: ", None))
         self.placeholder.setText(QCoreApplication.translate("RenameSuffixWindow", u"enabled", None))
+        self.hint_label.setText(QCoreApplication.translate("RenameSuffixWindow", u"Tips: ", None))
+        self.hint_text.setText(QCoreApplication.translate("RenameSuffixWindow", u"Text", None))
         self.exec_button.setText(QCoreApplication.translate("RenameSuffixWindow", u"Run", None))
+        self.menuHelp.setTitle(QCoreApplication.translate("RenameSuffixWindow", u"Help", None))
     # retranslateUi
 
