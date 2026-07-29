@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction
 
-from i18n import LOCTEXT
+from src.i18n import LOCTEXT
 
 def createQuickButtons(window):
     def button_with_text(text:str):

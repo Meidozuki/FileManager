@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QImage, QAction
 
 from .main_window import MainWindow
-from submodules import WindowRenameSuffix
+from .submodules import WindowRenameSuffix
 
 _navigator_table = [
     # key, display text, class
