@@ -1,8 +1,5 @@
-import json
 import os
-import logging
 
-import numpy as np
 import pandas as pd
 
 from PySide6.QtWidgets import (
@@ -15,8 +12,11 @@ from PySide6.QtGui import (
 from .vbao_wrapper import vbao
 # import vbao
 from .table_item import TableItem, TableItemChecklist
-from .common import changeFileExt
+from .tag import (
+    TagFilter, TagModel, TagRuleError, normalize_tag_name, normalize_tags
+)
 from .model import Model
+from .row_mapping import source_index_for_view_row
 from .vm_commands import *
 
 
@@ -31,6 +31,8 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         super().__init__(parent)
 
         self.model = Model()
+        self.tag_model = TagModel()
+        self.tag_filter = TagFilter()
         self.setListener(vbao.DummyPropListener())
 
         self.registerCommands({
@@ -40,6 +42,8 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             "add_file": CommandAddTableRow,
             "update_image": CommandUpdatePreviewImage,
             "update_tags": CommandUpdateTags,
+            "toggle_file_tag": CommandToggleFileTag,
+            "manage_tags": CommandManageTagDefinition,
             "filter_tags": CommandFilterTags,
             "clear_filters": CommandClearTagFilters,
             "open": CommandOpenFile,
@@ -52,16 +56,15 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         self.clear()
         self.setProperty_vbao("temp_dir", self.model.temp_dir)
         self.setProperty_vbao("save_format", self.model.save_format)
-        if os.path.exists(start_load_path):
-            df = self.loadData(start_load_path)
-            df = self.model.prune(df)
-            self.setProperty_vbao("item_list", TableItem.fromRecords(df))
-
         self.setProperty_vbao("work_dir", os.getcwd())
         self.triggerPropertyNotifications("work_dir")
+        if os.path.exists(start_load_path):
+            self.loadData(start_load_path)
 
     def clear(self):
+        self.tag_filter.clear()
         self.setProperty_vbao("filter_index", None)
+        self.setProperty_vbao("visible_source_indices", [])
         self.setProperty_vbao("item_list", [])
         self.onDataChanged()
         self.triggerCommandNotifications("clear", True)
@@ -75,66 +78,116 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
     def work_dir(self):
         return self.getProperty("work_dir")
 
+    @property
+    def visible_source_indices(self) -> list[int]:
+        indices = self.getProperty_vbao("visible_source_indices")
+        return list(indices) if indices is not None else []
+
+    def sourceIndexForViewRow(self, view_row: int) -> int:
+        return source_index_for_view_row(self.visible_source_indices, view_row)
+
+    def itemForViewRow(self, view_row: int) -> TableItem:
+        source_index = self.sourceIndexForViewRow(view_row)
+        return self.getProperty_vbao("item_list")[source_index]
+
     # save/load
     def loadData(self, filename):
-        """load data from disk"""
-        # process data
-        df = self.model.load(filename)
-        print(df)
+        """Load file records and their optional Tag schema sidecar."""
+        try:
+            df = self.model.load(filename)
+            items = TableItem.fromRecords(df)
+            metadata = self.model.loadMetadata(filename)
+            tag_model = TagModel.from_dict(metadata)
 
-        shape = df.shape
-        self.setRowCount(shape[0])
-        if shape[0] > 0:
-            df["tags"] = df["tags"].apply(lambda s: s.split(", ") if s else [])
+            for item in items:
+                tag_model.register_existing_tags(item.tags)
+            for item in items:
+                item.setTags(tag_model.enforce_file_tags(item.tags))
+                if self.config["auto_show_image_file"]:
+                    item.autoDetectImage()
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError) as exc:
+            self._notifyTagError(f"加载失败：{exc}")
+            self.triggerCommandNotifications("load", False)
+            return pd.DataFrame()
 
-        self.setProperty_vbao('item_list', TableItem.fromRecords(df))
+        self.tag_model = tag_model
+        self.tag_filter.clear()
+        self.setProperty_vbao('item_list', items)
 
-        # process env
-        json_name = changeFileExt(filename, 'json')
-        if os.path.exists(json_name):
-            with open(json_name, 'r') as f:
-                d = json.load(f)
-
-            work_dir = d["work_dir"]
-            if os.path.exists(work_dir):
-                self.setProperty_vbao("work_dir", work_dir)
-                self.triggerPropertyNotifications("work_dir")
+        work_dir = metadata.get("work_dir")
+        if isinstance(work_dir, str) and os.path.exists(work_dir):
+            self.setProperty_vbao("work_dir", work_dir)
+            self.triggerPropertyNotifications("work_dir")
 
         self.onDataChanged()
+        self.triggerPropertyNotifications("tag_schema")
+        self.triggerCommandNotifications("load", True)
         return df
 
     def _getWorkEnv(self):
-        return {
-            "work_dir": self.work_dir
-        }
+        metadata = {"work_dir": self.work_dir}
+        metadata.update(self.tag_model.to_dict())
+        return metadata
 
     def saveData(self, filename):
-        if self.model.save(self.getProperty("item_list"), filename) is not None:
-            with open(changeFileExt(filename, 'json'), 'w') as f:
-                json.dump(self._getWorkEnv(), f)
-            self.triggerCommandNotifications("save", True)
-        else:
+        items = self.getProperty_vbao("item_list") or []
+        try:
+            sidecar_path = self.model.metadataPath(filename)
+            if os.path.abspath(sidecar_path) == os.path.abspath("config.json"):
+                raise ValueError("同名 JSON 会覆盖应用配置 config.json，请更换 CSV 文件名")
+
+            for item in items:
+                self.tag_model.register_existing_tags(item.tags)
+                conflicts = self.tag_model.validate_file_tags(item.tags)
+                if conflicts:
+                    group_names = [
+                        self.tag_model.get_group(group_id).name
+                        for group_id in conflicts
+                    ]
+                    raise TagRuleError(
+                        f"文件 {item.short_name} 的互斥 Tag 冲突：{', '.join(group_names)}"
+                    )
+
+            self.model.save(items, filename)
+            self.model.saveMetadata(filename, self._getWorkEnv())
+        except (OSError, UnicodeError, ValueError, TypeError, TagRuleError) as exc:
+            self._notifyTagError(f"保存失败：{exc}")
             self.triggerCommandNotifications("save", False)
+            return
+
+        self.triggerPropertyNotifications("tag_schema")
+        self.triggerCommandNotifications("save", True)
+
+    def _calculateVisibleSourceIndices(self) -> list[int]:
+        items = self.getProperty_vbao("item_list") or []
+        if self.tag_filter.is_empty:
+            return list(range(len(items)))
+        return [
+            source_index
+            for source_index, item in enumerate(items)
+            if self.tag_filter.matches(item.tags)
+        ]
 
     def onDataChanged(self):
-        ls = self.getProperty("item_list")
-        index = self.getProperty_vbao("filter_index")
-        if index is None:
-            index = range(len(ls))
+        items = self.getProperty_vbao("item_list") or []
+        visible_indices = self._calculateVisibleSourceIndices()
+        self.setProperty_vbao("visible_source_indices", visible_indices)
+        self.setProperty_vbao(
+            "filter_index",
+            None if self.tag_filter.is_empty else visible_indices,
+        )
 
-        self.setRowCount(len(index))
-        if ls:
-            col_count = ls[0].expected_cols
+        self.setRowCount(len(visible_indices))
+        if items:
+            col_count = items[0].expected_cols
             if self.columnCount() < col_count:
                 self.setColumnCount(col_count)
 
-            for row, idx in enumerate(index):
-                item: TableItem = ls[idx]
-                if self.config["auto_show_image_file"]:
-                    item.autoDetectImage()
-                self.addTableRow(row, item)
+        for view_row, source_index in enumerate(visible_indices):
+            item: TableItem = items[source_index]
+            self.addTableRow(view_row, item)
 
-            self.triggerPropertyNotifications("items")
+        self.triggerPropertyNotifications("items")
 
     def addTableRow(self, idx, item: TableItem):
         viewer = {'short_name': lambda: QStandardItem(item.short_name),
@@ -142,7 +195,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
                   'rela_path': lambda: QStandardItem(os.path.relpath(item.abs_path, self.work_dir)),
                   'abs_path': lambda: QStandardItem(item.abs_path),
                   'icon': lambda: QStandardItem(item.icon, ''),
-                  'tags': lambda: QStandardItem(str(item.tags)),
+                  'tags': lambda: QStandardItem(item.tags_text),
                   'empty': lambda: QStandardItem()
                   }
 
@@ -158,34 +211,144 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             return False
 
         new_one = TableItem(filename)
-        ls = self.getProperty_vbao("item_list")
-        ls.append(new_one)
-        self.addTableRow(self.rowCount(), new_one)
-        self.triggerPropertyNotifications("items")
+        if self.config["auto_show_image_file"]:
+            new_one.autoDetectImage()
+        items = self.getProperty_vbao("item_list")
+        items.append(new_one)
+        self.onDataChanged()
         self.triggerCommandNotifications("add_new", True)
+        return True
 
-    def updateImage(self, row, image_path):
-        ls = self.getProperty_vbao("item_list")
-        if row < len(ls):
-            item: TableItem = ls[row]
-            success = item.setDisplay(image_path)
-            self.triggerPropertyNotifications('items')
-            self.triggerCommandNotifications("update_image", success)
-        else:
+    def updateImage(self, view_row: int, image_path: str):
+        try:
+            item = self.itemForViewRow(view_row)
+        except IndexError:
             self.triggerCommandNotifications("update_image", False)
+            return
 
-    def updateTags(self, row, tags):
-        tags = tags.replace(', ', ',').split(',')
-        self.getProperty_vbao("item_list")[row].tags = tags
-        self.onDataChanged()
+        success = item.setDisplay(image_path)
+        self.triggerPropertyNotifications("items")
+        self.triggerCommandNotifications("update_image", success)
 
-    def filterTag(self, tag):
-        df = self.model.changeItemToDf(self.getProperty_vbao("item_list"))
-        print(f"before filter tag {tag}, length is {df.shape[0]}")
-        df = df[df["tags"].apply(lambda ls: tag in ls)]
-        print(f"after filter tag {tag}, length is {df.shape[0]}")
-        self.setProperty_vbao("filter_index", df.index)
+    def updateTags(self, view_row: int, tags):
+        try:
+            item = self.itemForViewRow(view_row)
+            normalized = normalize_tags(tags)
+            self.tag_model.register_existing_tags(normalized)
+            item.setTags(self.tag_model.enforce_file_tags(normalized))
+        except (IndexError, TagRuleError, TypeError) as exc:
+            self._notifyTagError(str(exc))
+            self.triggerCommandNotifications("update_tags", False)
+            return
+
         self.onDataChanged()
+        self.triggerPropertyNotifications("tag_schema")
+        self.triggerCommandNotifications("update_tags", True)
+
+    def setFileTag(self, view_row: int, tag: str, selected: bool):
+        try:
+            item = self.itemForViewRow(view_row)
+            item.setTags(self.tag_model.apply_tag_selection(item.tags, tag, selected))
+        except (IndexError, TagRuleError, TypeError) as exc:
+            self._notifyTagError(str(exc))
+            self.triggerCommandNotifications("toggle_file_tag", False)
+            return
+
+        self.onDataChanged()
+        self.triggerCommandNotifications("toggle_file_tag", True)
+
+    def _notifyTagError(self, message: str):
+        self.setProperty_vbao("tag_error", message)
+        self.triggerPropertyNotifications("tag_error")
+
+    def _selectedFilterTags(self) -> list[str]:
+        return normalize_tags(
+            list(self.tag_filter.exclusive.values()) + list(self.tag_filter.coexist)
+        )
+
+    def _restoreFilterFromTags(self, selected_tags):
+        exclusive: dict[str, str] = {}
+        coexist: list[str] = []
+        for tag in normalize_tags(selected_tags):
+            if tag not in self.tag_model.all_tags:
+                continue
+            group = self.tag_model.group_for_tag(tag)
+            if group is None:
+                coexist.append(tag)
+            else:
+                exclusive[group.id] = tag
+        self.tag_filter = TagFilter(exclusive, coexist)
+
+    def manageTagDefinition(self, action: str, *args):
+        items = self.getProperty_vbao("item_list") or []
+        selected_filter_tags = self._selectedFilterTags()
+        try:
+            if action == "add_group":
+                self.tag_model.add_group(args[0])
+            elif action == "rename_group":
+                self.tag_model.rename_group(args[0], args[1])
+            elif action == "delete_group":
+                self.tag_model.delete_group(args[0])
+            elif action == "add_tag":
+                self.tag_model.add_tag(args[0], args[1])
+            elif action == "rename_tag":
+                old_name = normalize_tag_name(args[0])
+                new_name = normalize_tag_name(args[1])
+                self.tag_model.rename_tag(old_name, new_name)
+                selected_filter_tags = [
+                    new_name if tag == old_name else tag
+                    for tag in selected_filter_tags
+                ]
+                for item in items:
+                    item.setTags(self.tag_model.rename_in_file_tags(
+                        item.tags, old_name, new_name
+                    ))
+            elif action == "delete_tag":
+                tag = args[0]
+                self.tag_model.delete_tag(tag)
+                selected_filter_tags = [
+                    selected for selected in selected_filter_tags
+                    if selected != tag
+                ]
+                for item in items:
+                    item.setTags(self.tag_model.remove_from_file_tags(item.tags, tag))
+            elif action == "move_tag":
+                tag, group_id = args[0], args[1]
+                self.tag_model.move_tag(tag, group_id)
+                if tag in selected_filter_tags:
+                    selected_filter_tags.remove(tag)
+                    selected_filter_tags.append(tag)
+                if group_id is not None:
+                    for item in items:
+                        if tag in item.tags:
+                            item.setTags(self.tag_model.apply_tag_selection(
+                                item.tags, tag, True
+                            ))
+            else:
+                raise TagRuleError(f'unknown tag operation: "{action}"')
+        except (IndexError, TagRuleError, TypeError, ValueError) as exc:
+            self._notifyTagError(str(exc))
+            self.triggerCommandNotifications("manage_tags", False)
+            return
+
+        self._restoreFilterFromTags(selected_filter_tags)
+        self.onDataChanged()
+        self.triggerPropertyNotifications("tag_schema")
+        self.triggerCommandNotifications("manage_tags", True)
+
+    def setTagFilter(self, exclusive=None, coexist=None):
+        self.tag_filter = TagFilter(exclusive or {}, coexist or [])
+        self.onDataChanged()
+        self.triggerCommandNotifications("filter_tags", True)
+
+    def filterTag(self, tags):
+        """Compatibility entry point for the existing text-based filter dialog."""
+        self.setTagFilter(coexist=tags)
+
+    def clearTagFilters(self):
+        self.tag_filter.clear()
+        self.onDataChanged()
+        self.triggerCommandNotifications("clear_filters", True)
 
     def changeWorkDir(self, new_dir: str):
         assert os.path.exists(new_dir)

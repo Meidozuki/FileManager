@@ -57,15 +57,31 @@ class CommandUpdateTags(CommandBaseWithOwner, CommandDirectCallMixin):
         self.owner.updateTags(self.row, self.tag)
 
 
+class CommandToggleFileTag(CommandBaseWithOwner, CommandDirectCallMixin):
+    def execute(self):
+        if self.args is not None:
+            self.owner.setFileTag(*self.args)
+
+
+class CommandManageTagDefinition(CommandBaseWithOwner, CommandDirectCallMixin):
+    def execute(self):
+        if self.args is not None:
+            self.owner.manageTagDefinition(*self.args)
+
+
 class CommandFilterTags(CommandBaseWithOwner, CommandDirectCallMixin):
     def execute(self):
-        self.owner.filterTag(*self.args)
+        if self.args is None:
+            return
+        if len(self.args) == 1:
+            self.owner.filterTag(self.args[0])
+        else:
+            self.owner.setTagFilter(*self.args)
 
 
 class CommandClearTagFilters(CommandBaseWithOwner):
     def execute(self):
-        self.owner.setProperty_vbao("filter_index", None)
-        self.owner.onDataChanged()
+        self.owner.clearTagFilters()
 
 
 class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):

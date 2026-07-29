@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QPixmap, QImage, QStandardItem
 
 from .common import getFileIcon
+from .tag import normalize_tags
 
 
 def readImage(filename: str, size: Optional[Tuple[int, int]] = None):
@@ -60,6 +61,7 @@ class TableItem:
         return f'TableItem("{self._filename}")'
 
     def recordMapping(self):
+        self.tags = normalize_tags(self.tags)
         mapping = {'filename': self._filename,
                    'display_image': self._display,
                    'tags': ', '.join(self.tags)}
@@ -112,15 +114,16 @@ class TableItem:
                 self._display = self._filename
 
     def setTags(self, tags):
-        if tags is None or not isinstance(tags, (str, list)):
-            return
-
-        if not tags:
+        if tags is None or (np.isscalar(tags) and pd.isna(tags)):
             self.tags = []
-        else:
-            self.tags = tags
+            return
+        self.tags = normalize_tags(tags)
 
     # getter
+    @property
+    def tags_text(self) -> str:
+        return ", ".join(self.tags)
+
     @property
     def short_name(self):
         return os.path.split(self._filename)[1]

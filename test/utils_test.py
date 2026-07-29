@@ -1,7 +1,10 @@
 import os, sys
 import pytest
-import numpy as np
-import pandas as pd
+
+np = pytest.importorskip("numpy")
+pd = pytest.importorskip("pandas")
+pytest.importorskip("PIL")
+pytest.importorskip("PySide6")
 
 sys.path.append(os.path.abspath('..'))
 
@@ -29,11 +32,12 @@ def test_QFileDialog_format_multi():
     assert output == "Images (*.png *.xpm *.jpg);;Text files (*.txt);;XML files (*.xml)"
 
 
-def test_model_config():
+def test_model_config(tmp_path):
     model = Model()
-    d = model.config
-    model.saveConfig()
-    assert os.path.exists('config.json')
+    expected = dict(model.config)
+    config_path = tmp_path / 'config.json'
+    model.saveConfig(str(config_path))
+    assert config_path.exists()
 
-    model.loadConfig()
-    assert d == model.config
+    model.loadConfig(str(config_path))
+    assert expected == model.config
