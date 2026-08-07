@@ -15,8 +15,7 @@ _navigator_table = [
     # key, display text, class
     ["default", "MainWindow", MainWindow],
     ["rename", "重命名文件后缀", WindowRenameSuffix],
-    ["1", "1", object],
-    ["2", "2", object],
+    ["1", "Placeholder", object],
 ]
 
 _navigator_settings = {

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QInputDialog,
     QLabel,
     QMessageBox,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..theme import TAG_DIALOG_STYLE, TAG_PANEL_STYLE
 from .schema import TagFilter, TagModel, normalize_tags
 
 
@@ -144,65 +146,7 @@ class TagPanel(QFrame):
         root.addWidget(scroll)
 
     def _apply_style(self):
-        self.setStyleSheet("""
-            QFrame#tagPanel {
-                background: #F4F7FB;
-                border-left: 1px solid #D9E2EF;
-                color: #172033;
-                font-family: "Noto Sans", "Microsoft YaHei UI";
-                font-size: 13px;
-            }
-            QLabel#tagPanelTitle { font-size: 20px; font-weight: 600; color: #172033; }
-            QLabel#tagPanelSubtitle { color: #64748B; font-size: 12px; }
-            QFrame#tagCard {
-                background: #FFFFFF;
-                border: 1px solid #DDE6F2;
-                border-radius: 10px;
-            }
-            QLabel#sectionTitle { font-size: 15px; font-weight: 600; color: #172033; }
-            QLabel#currentFileLabel {
-                color: #526078;
-                background: #EAF0F8;
-                border-radius: 6px;
-                padding: 7px;
-            }
-            QLabel#countBadge {
-                color: #1D4ED8;
-                background: #DBEAFE;
-                border-radius: 8px;
-                padding: 2px 7px;
-                font-weight: 600;
-            }
-            QPushButton {
-                min-height: 26px;
-                padding: 2px 10px;
-                border-radius: 6px;
-                border: 1px solid #CBD7E6;
-                background: #FFFFFF;
-                color: #172033;
-            }
-            QPushButton:hover { background: #EAF0F8; border-color: #94A9C4; }
-            QPushButton#primaryButton {
-                color: #FFFFFF;
-                background: #2563EB;
-                border-color: #2563EB;
-                font-weight: 600;
-            }
-            QPushButton#primaryButton:hover { background: #1D4ED8; }
-            QPushButton#quietButton { color: #526078; background: transparent; }
-            QGroupBox {
-                margin-top: 10px;
-                padding-top: 8px;
-                border: 1px solid #E1E8F2;
-                border-radius: 7px;
-                font-weight: 600;
-                color: #526078;
-            }
-            QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; }
-            QCheckBox, QRadioButton { spacing: 7px; color: #172033; font-weight: 400; }
-            QCheckBox:hover, QRadioButton:hover { color: #1D4ED8; }
-            QScrollArea { background: transparent; }
-        """)
+        self.setStyleSheet(TAG_PANEL_STYLE)
 
     def setState(
         self,
@@ -285,8 +229,8 @@ class TagPanel(QFrame):
 
         if not self._tag_model.all_tags:
             empty = QLabel("尚未定义 Tag，请点击“管理”创建。")
+            empty.setObjectName("emptyHint")
             empty.setWordWrap(True)
-            empty.setStyleSheet("color: #64748B; padding: 8px 2px;")
             self.filter_content_layout.addWidget(empty)
         self.filter_content_layout.addStretch()
 
@@ -331,7 +275,7 @@ class TagPanel(QFrame):
 
         if not self._tag_model.all_tags:
             empty = QLabel("请先在 Tag 管理中创建标签。")
-            empty.setStyleSheet("color: #64748B; padding: 8px 2px;")
+            empty.setObjectName("emptyHint")
             empty.setWordWrap(True)
             self.file_content_layout.addWidget(empty)
         self.file_content.setEnabled(has_file)
@@ -386,39 +330,49 @@ class TagManagerDialog(QDialog):
         super().__init__(parent)
         self._tag_model = tag_model
         self.setWindowTitle("Tag 管理")
-        self.resize(620, 480)
+        self.resize(680, 520)
+        self.setMinimumSize(560, 420)
         self._build_ui()
         self._apply_style()
         self.setTagModel(tag_model)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
+        root.setContentsMargins(18, 16, 18, 16)
+        root.setSpacing(10)
         title = QLabel("Tag 与互斥规则")
         title.setObjectName("dialogTitle")
         description = QLabel("互斥组内每个文件只能选择一个 Tag；共存 Tag 可以多选。")
         description.setObjectName("dialogDescription")
+        description.setWordWrap(True)
         root.addWidget(title)
         root.addWidget(description)
 
         self.tree = QTreeWidget()
+        self.tree.setObjectName("tagRuleTree")
         self.tree.setHeaderLabels(["名称", "类型"])
         self.tree.setAlternatingRowColors(True)
         self.tree.setRootIsDecorated(True)
-        self.tree.setColumnWidth(0, 360)
-        root.addWidget(self.tree)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.currentItemChanged.connect(self._update_action_states)
+        root.addWidget(self.tree, 1)
 
         actions = QHBoxLayout()
-        for text, slot, object_name in [
-            ("新增互斥组", self._add_group, "primaryButton"),
-            ("新增 Tag", self._add_tag, "primaryButton"),
-            ("改名", self._rename_selected, ""),
-            ("移动 Tag", self._move_selected, ""),
-            ("删除", self._delete_selected, "dangerButton"),
+        actions.setSpacing(8)
+        self.action_buttons: dict[str, QPushButton] = {}
+        for key, text, slot, object_name in [
+            ("add_group", "新增互斥组", self._add_group, "primaryButton"),
+            ("add_tag", "新增 Tag", self._add_tag, "primaryButton"),
+            ("rename", "改名", self._rename_selected, ""),
+            ("move", "移动 Tag", self._move_selected, ""),
+            ("delete", "删除", self._delete_selected, "dangerButton"),
         ]:
             button = QPushButton(text)
             if object_name:
                 button.setObjectName(object_name)
             button.clicked.connect(slot)
+            self.action_buttons[key] = button
             actions.addWidget(button)
         actions.addStretch()
         root.addLayout(actions)
@@ -426,22 +380,10 @@ class TagManagerDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)
+        self._update_action_states()
 
     def _apply_style(self):
-        self.setStyleSheet("""
-            QDialog { background: #F4F7FB; color: #172033; font-family: "Noto Sans", "Microsoft YaHei UI"; font-size: 13px; }
-            QLabel#dialogTitle { font-size: 20px; font-weight: 600; color: #172033; }
-            QLabel#dialogDescription { color: #526078; padding-bottom: 8px; }
-            QTreeWidget { background: #FFFFFF; border: 1px solid #D9E2EF; border-radius: 8px; alternate-background-color: #F7F9FC; }
-            QTreeWidget::item { min-height: 28px; }
-            QTreeWidget::item:selected { background: #DBEAFE; color: #1D4ED8; }
-            QPushButton { min-height: 28px; padding: 2px 12px; border: 1px solid #CBD7E6; border-radius: 6px; background: #FFFFFF; }
-            QPushButton:hover { background: #EAF0F8; }
-            QPushButton#primaryButton { color: #FFFFFF; background: #2563EB; border-color: #2563EB; }
-            QPushButton#primaryButton:hover { background: #1D4ED8; }
-            QPushButton#dangerButton { color: #C93C37; border-color: #E5B4B1; }
-            QPushButton#dangerButton:hover { background: #FFF0EF; }
-        """)
+        self.setStyleSheet(TAG_DIALOG_STYLE)
 
     def setTagModel(self, tag_model: TagModel):
         self._tag_model = tag_model
@@ -471,12 +413,22 @@ class TagManagerDialog(QDialog):
             coexist_root.addChild(tag_item)
 
         self.tree.expandAll()
+        self._update_action_states()
 
     def _selected(self) -> tuple[str | None, object | None]:
         item = self.tree.currentItem()
         if item is None:
             return None, None
         return item.data(0, _KIND_ROLE), item.data(0, _ID_ROLE)
+
+    def _update_action_states(self, *args):
+        kind, _ = self._selected()
+        if not hasattr(self, "action_buttons"):
+            return
+        editable = kind in {"group", "tag"}
+        self.action_buttons["rename"].setEnabled(editable)
+        self.action_buttons["move"].setEnabled(kind == "tag")
+        self.action_buttons["delete"].setEnabled(editable)
 
     def _destination_group_id(self, item: QTreeWidgetItem | None) -> str | None:
         while item is not None:

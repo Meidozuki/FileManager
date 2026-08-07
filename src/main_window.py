@@ -4,9 +4,9 @@ from typing import List, Optional, Union, Tuple
 from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QModelIndex
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog, QDialog,
+    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog,
     QMessageBox, QSplitter, QTableWidget, QTableWidgetItem, QHeaderView, QTableView,
-    QAbstractItemView)
+    QAbstractItemView, QFrame, QStackedWidget, QSizePolicy)
 from PySide6.QtGui import (
     QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
 )
@@ -16,6 +16,36 @@ from .viewmodel import ViewModel
 from .ui import MenuBar, createQuickButtons
 from .table_item import TableItem
 from .tag.panel import TagManagerDialog, TagPanel
+from .theme import MAIN_WINDOW_STYLE
+
+
+class ElidedLabel(QLabel):
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(parent)
+        self._full_text = ""
+        self.setFullText(text)
+
+    @property
+    def fullText(self) -> str:
+        return self._full_text
+
+    def setFullText(self, text: str):
+        self._full_text = text or ""
+        self.setToolTip(self._full_text)
+        self._update_elided_text()
+
+    def _update_elided_text(self):
+        available_width = max(0, self.contentsRect().width())
+        elided = self.fontMetrics().elidedText(
+            self._full_text,
+            Qt.TextElideMode.ElideMiddle,
+            available_width,
+        )
+        super().setText(elided)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_elided_text()
 
 
 class MainWindow(QMainWindow, vbao.core.View):
@@ -25,8 +55,11 @@ class MainWindow(QMainWindow, vbao.core.View):
         self.prop_listener = ViewPropListener(self)
         self.cmd_listener = ViewCmdListener(self)
 
-        self.setWindowTitle("File Manager")
+        self.setObjectName("mainWindow")
+        self.setWindowTitle("文件管理器")
         self.resize(QSize(1180, 720))
+        self.setMinimumSize(QSize(880, 560))
+        self.setStyleSheet(MAIN_WINDOW_STYLE)
 
         self.menu_bar = MenuBar(self)
         self.setMenuBar(self.menu_bar)
@@ -84,17 +117,41 @@ class MainWindow(QMainWindow, vbao.core.View):
         self.view.setIndexWidget(self.getIndex(i, j), widget)
 
     def setupTableView(self):
+        self.view.setObjectName("fileTable")
         self.view.setModel(self.viewmodel)
+        self.viewmodel.setHorizontalHeaderLabels([
+            "文件名", "预览", "Tag", "相对路径", "绝对路径",
+        ])
 
         self.view.setIconSize(QSize(30, 30))
-
-        header_view = QHeaderView(Qt.Orientation.Vertical, None)
-        header_view.setDefaultSectionSize(100)
-        self.view.setVerticalHeader(header_view)
-
+        self.view.setAlternatingRowColors(True)
+        self.view.setShowGrid(False)
+        self.view.setWordWrap(False)
         self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-
+        self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.view.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+        vertical_header = QHeaderView(Qt.Orientation.Vertical, self.view)
+        vertical_header.setDefaultSectionSize(100)
+        vertical_header.setMinimumSectionSize(72)
+        vertical_header.hide()
+        self.view.setVerticalHeader(vertical_header)
+
+        horizontal_header = self.view.horizontalHeader()
+        horizontal_header.setMinimumHeight(38)
+        horizontal_header.setStretchLastSection(True)
+        horizontal_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        horizontal_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        horizontal_header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        horizontal_header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        horizontal_header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        self.view.setColumnWidth(0, 220)
+        self.view.setColumnWidth(1, 120)
+        self.view.setColumnWidth(2, 180)
+        self.view.setColumnWidth(3, 220)
+
         self.view.selectionModel().selectionChanged.connect(self.onTableSelectionChanged)
 
     def setupTagPanel(self):
@@ -115,14 +172,28 @@ class MainWindow(QMainWindow, vbao.core.View):
     def refreshTagPanel(self):
         item = self._selectedTableItem()
         items = self.getProperty_vbao("item_list") or []
+        visible_count = len(self.viewmodel.visible_source_indices)
+        total_count = len(items)
         self.tag_panel.setState(
             self.viewmodel.tag_model,
             self.viewmodel.tag_filter,
             item.short_name if item is not None else None,
             item.tags if item is not None else [],
-            len(self.viewmodel.visible_source_indices),
-            len(items),
+            visible_count,
+            total_count,
         )
+        if hasattr(self, "status_count_label"):
+            self.status_count_label.setText(f"显示 {visible_count} / 共 {total_count}")
+        if hasattr(self, "empty_state") and hasattr(self, "table_stack"):
+            if visible_count:
+                self.table_stack.setCurrentWidget(self.view)
+            else:
+                self.empty_state.setText(
+                    "还没有文件，点击“添加文件”开始整理。"
+                    if total_count == 0
+                    else "没有符合当前 Tag 筛选条件的文件。"
+                )
+                self.table_stack.setCurrentWidget(self.empty_state)
         if self.tag_manager_dialog is not None:
             self.tag_manager_dialog.setTagModel(self.viewmodel.tag_model)
 
@@ -142,42 +213,91 @@ class MainWindow(QMainWindow, vbao.core.View):
             pixmap = row_data.getPreviewImage()
             if pixmap is not None:
                 preview_image = QLabel()
+                preview_image.setObjectName("previewImage")
+                preview_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 preview_image.setPixmap(pixmap)
                 self.setIndexWidget(view_row, 1, preview_image)
             else:
-                self.viewmodel.setItem(view_row, 1, QStandardItem("None"))
+                empty_preview = QStandardItem("无预览")
+                empty_preview.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.viewmodel.setItem(view_row, 1, empty_preview)
 
     def createTableLayout(self):
-        """setLayout() will auto parent"""
         parent = QWidget(self)
+        parent.setObjectName("mainContent")
+        outer_v = QVBoxLayout(parent)
+        outer_v.setContentsMargins(16, 14, 16, 14)
+        outer_v.setSpacing(12)
 
-        outer_v = QVBoxLayout()
+        toolbar_card = QFrame(parent)
+        toolbar_card.setObjectName("toolBarCard")
+        toolbar_card.setLayout(createQuickButtons(self))
+        outer_v.addWidget(toolbar_card)
 
-        inner_h = createQuickButtons(self)
-        label = QLabel("Current directory: ")
-        label.setObjectName("work dir display")
+        table_card = QFrame(parent)
+        table_card.setObjectName("tableCard")
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        table_header = QWidget(table_card)
+        table_header_layout = QHBoxLayout(table_header)
+        table_header_layout.setContentsMargins(14, 11, 14, 10)
+        title_block = QVBoxLayout()
+        title_block.setSpacing(1)
+        title = QLabel("文件列表")
+        title.setObjectName("workspaceTitle")
+        subtitle = QLabel("浏览文件、预览图与 Tag 信息")
+        subtitle.setObjectName("workspaceSubtitle")
+        title_block.addWidget(title)
+        title_block.addWidget(subtitle)
+        table_header_layout.addLayout(title_block)
+        table_header_layout.addStretch()
+        table_layout.addWidget(table_header)
+
+        self.table_stack = QStackedWidget(table_card)
+        self.table_stack.setObjectName("tableStack")
+        self.empty_state = QLabel("还没有文件，点击“添加文件”开始整理。")
+        self.empty_state.setObjectName("emptyState")
+        self.empty_state.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_state.setWordWrap(True)
+        self.table_stack.addWidget(self.view)
+        self.table_stack.addWidget(self.empty_state)
+        table_layout.addWidget(self.table_stack)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal, parent)
+        splitter.setObjectName("workspaceSplitter")
         splitter.setChildrenCollapsible(False)
-        splitter.addWidget(self.view)
+        splitter.setHandleWidth(7)
+        splitter.addWidget(table_card)
         splitter.addWidget(self.tag_panel)
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 0)
         splitter.setSizes([850, 330])
+        outer_v.addWidget(splitter, 1)
 
-        outer_v.addLayout(inner_h)
-        outer_v.addWidget(splitter)
-        outer_v.addWidget(label)
+        status_card = QFrame(parent)
+        status_card.setObjectName("statusCard")
+        status_layout = QHBoxLayout(status_card)
+        status_layout.setContentsMargins(12, 7, 12, 7)
+        status_layout.setSpacing(8)
+        caption = QLabel("当前目录")
+        caption.setObjectName("statusCaption")
+        self.work_dir_label = ElidedLabel("尚未设置")
+        self.work_dir_label.setObjectName("work dir display")
+        self.work_dir_label.setMinimumWidth(80)
+        self.work_dir_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+        self.status_count_label = QLabel("显示 0 / 共 0")
+        self.status_count_label.setObjectName("itemCountBadge")
+        status_layout.addWidget(caption)
+        status_layout.addWidget(self.work_dir_label, 1)
+        status_layout.addWidget(self.status_count_label)
+        outer_v.addWidget(status_card)
 
-        parent.setLayout(outer_v)
         return parent
-
-    # button slots
-    @Slot()
-    def testFn(self):
-        print('test fn')
-        widget = QDialog(self)
-        widget.exec_()
 
     @Slot()
     def commandOpenFolder(self):
@@ -278,7 +398,12 @@ class ViewPropListener(vbao.PropertyListenerBase):
                     QMessageBox.warning(self.master, "操作失败", message)
             case 'work_dir':
                 label = self.master.layout_widget.findChild(QLabel, "work dir display")
-                label.setText("Current directory: " + self.master.getProperty("work_dir"))
+                work_dir = self.master.getProperty("work_dir") or "尚未设置"
+                if isinstance(label, ElidedLabel):
+                    label.setFullText(work_dir)
+                elif label is not None:
+                    label.setText(work_dir)
+                    label.setToolTip(work_dir)
             case _:
                 print('uncaught prop ' + prop_name)
 
