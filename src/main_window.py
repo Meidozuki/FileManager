@@ -1,22 +1,21 @@
 import os
-from typing import List, Optional, Union, Tuple
+from typing import Optional, Union, Tuple
 
-from PySide6.QtCore import QSize, Qt, Slot, QFileInfo, QModelIndex
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileIconProvider, QFileDialog, QInputDialog,
-    QMessageBox, QSplitter, QTableWidget, QTableWidgetItem, QHeaderView, QTableView,
-    QAbstractItemView, QFrame, QStackedWidget, QSizePolicy)
+from PySide6.QtCore import QSize, Qt, Slot
 from PySide6.QtGui import (
-    QIcon, QPixmap, QImage, QAction, QStandardItemModel, QStandardItem,
+    QStandardItem,
 )
+from PySide6.QtWidgets import (
+    QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QFileDialog, QInputDialog,
+    QMessageBox, QSplitter, QAbstractItemView, QFrame, QStackedWidget, QSizePolicy)
 
-from .vbao_wrapper import vbao
-from .viewmodel import ViewModel
-from .ui import MenuBar, createQuickButtons
+from views.table_view import FileTableView
 from .table_item import TableItem
 from .tag.panel import TagManagerDialog, TagPanel
 from .theme import MAIN_WINDOW_STYLE
+from .ui import MenuBar, createQuickButtons
+from .vbao_wrapper import vbao
+from .viewmodel import ViewModel
 
 
 class ElidedLabel(QLabel):
@@ -55,17 +54,17 @@ class MainWindow(QMainWindow, vbao.core.View):
         self.prop_listener = ViewPropListener(self)
         self.cmd_listener = ViewCmdListener(self)
 
-        self.setObjectName("mainWindow")
+        # self.setObjectName("mainWindow")
         self.setWindowTitle("文件管理器")
         self.resize(QSize(1180, 720))
-        self.setMinimumSize(QSize(880, 560))
+        # self.setMinimumSize(QSize(880, 560))
         self.setStyleSheet(MAIN_WINDOW_STYLE)
 
         self.menu_bar = MenuBar(self)
         self.setMenuBar(self.menu_bar)
 
         self.viewmodel = ViewModel()
-        self.view = QTableView()
+        self.view = None
         self.setupTableView()
         self.tag_panel = TagPanel(self)
         self.tag_manager_dialog = None
@@ -117,40 +116,14 @@ class MainWindow(QMainWindow, vbao.core.View):
         self.view.setIndexWidget(self.getIndex(i, j), widget)
 
     def setupTableView(self):
-        self.view.setObjectName("fileTable")
-        self.view.setModel(self.viewmodel)
-        self.viewmodel.setHorizontalHeaderLabels([
-            "文件名", "预览", "Tag", "相对路径", "绝对路径",
-        ])
+        self.view = FileTableView(self.viewmodel)
 
         self.view.setIconSize(QSize(30, 30))
         self.view.setAlternatingRowColors(True)
-        self.view.setShowGrid(False)
-        self.view.setWordWrap(False)
+        # self.view.setShowGrid(False)
+        # self.view.setWordWrap(False)
         self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.view.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        self.view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-
-        vertical_header = QHeaderView(Qt.Orientation.Vertical, self.view)
-        vertical_header.setDefaultSectionSize(100)
-        vertical_header.setMinimumSectionSize(72)
-        vertical_header.hide()
-        self.view.setVerticalHeader(vertical_header)
-
-        horizontal_header = self.view.horizontalHeader()
-        horizontal_header.setMinimumHeight(38)
-        horizontal_header.setStretchLastSection(True)
-        horizontal_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        horizontal_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        horizontal_header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        horizontal_header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        horizontal_header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
-        self.view.setColumnWidth(0, 220)
-        self.view.setColumnWidth(1, 120)
-        self.view.setColumnWidth(2, 180)
-        self.view.setColumnWidth(3, 220)
 
         self.view.selectionModel().selectionChanged.connect(self.onTableSelectionChanged)
 
