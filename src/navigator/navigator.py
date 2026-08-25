@@ -1,21 +1,32 @@
-import logging
+
 import numpy as np
-from typing import List, Optional, Union
+from dataclasses import dataclass
+from typing import Optional, TypeAlias
 
-from PySide6.QtCore import QObject, QSize, Qt, Slot, QCoreApplication
+from PySide6.QtCore import QSize, Slot, QCoreApplication
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QMenuBar, QMenu,
-    QWidget, QPushButton, QLabel, QFileDialog, QInputDialog, QDialog, QSizePolicy)
-from PySide6.QtGui import QImage, QAction
+    QMainWindow, QVBoxLayout, QWidget, QPushButton, QSizePolicy)
 
-from .main_window import MainWindow
-from .submodules import WindowRenameSuffix
+from src.main_window import MainWindow
+from src.submodules import WindowRenameSuffix
+
+
+@dataclass(frozen=True)
+class NavigatorTableItem:
+    key: str
+    text: str
+    window_cls: type[object]
+
+    def __post_init__(self):
+        assert isinstance(self.key, str)
+        assert isinstance(self.text, str)
+        assert issubclass(self.window_cls, object)
+
 
 _navigator_table = [
-    # key, display text, class
-    ["default", "MainWindow", MainWindow],
-    ["rename", "重命名文件后缀", WindowRenameSuffix],
-    ["1", "Placeholder", object],
+    NavigatorTableItem("default", "MainWindow", MainWindow),
+    NavigatorTableItem("rename", "重命名文件后缀", WindowRenameSuffix),
+    NavigatorTableItem("1", "Placeholder", object),
 ]
 
 _navigator_settings = {
@@ -24,17 +35,12 @@ _navigator_settings = {
     'tb_margin': 0
 }
 
-_SimpleNumber = int | float
+_SimpleNumber: TypeAlias = int | float
 
 
 class NavigatorTableHelper:
     @classmethod
-    def get(cls):
-        for item in _navigator_table:
-            key, text, cl = item
-            assert isinstance(key, str)
-            assert isinstance(text, str)
-            assert issubclass(cl, object)
+    def get(cls) -> list[NavigatorTableItem]:
         return _navigator_table
 
 
@@ -56,11 +62,10 @@ class NavigatorWindow(QMainWindow):
         self.set_margin(self.vertical_layout, self.settings['lr_margin'])
 
         for item in NavigatorTableHelper.get():
-            key, text, cls = item
             button = QPushButton(self)
-            button.setObjectName(key)
-            button.setText(text)
-            button.clicked.connect(self.create_subwindow_callback(cls))
+            button.setObjectName(item.key)
+            button.setText(item.text)
+            button.clicked.connect(self.create_subwindow_callback(item.window_cls))
 
             self.vertical_layout.addWidget(button)
             self.set_button_height(button, 30)

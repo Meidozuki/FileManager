@@ -7,9 +7,10 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QFileDialog, QInputDialog,
-    QMessageBox, QSplitter, QAbstractItemView, QFrame, QStackedWidget, QSizePolicy)
+    QMessageBox, QSplitter, QAbstractItemView, QFrame, QStackedWidget, QSizePolicy
+)
 
-from views.table_view import FileTableView
+from .views.table_view import FileTableView
 from .table_item import TableItem
 from .tag.panel import TagManagerDialog, TagPanel
 from .theme import MAIN_WINDOW_STYLE
