@@ -24,6 +24,18 @@ def createQuickButtons(window):
     layout_h.addWidget(button)
 
     button = button_with_text(
+        LOCTEXT(u'添加文件夹'), "secondaryButton", "将选中文件夹中的所有文件添加到列表（不递归）",
+    )
+    button.clicked.connect(window.commandAddFolder)
+    layout_h.addWidget(button)
+
+    button = button_with_text(
+        LOCTEXT(u'删除文件'), "secondaryButton", "删除当前选中的文件行",
+    )
+    button.clicked.connect(window.commandDeleteFiles)
+    layout_h.addWidget(button)
+
+    button = button_with_text(
         LOCTEXT(u'设置预览图'), "secondaryButton", "为选中的文件设置预览图",
     )
     button.clicked.connect(window.commandUpdateImage)
@@ -71,6 +83,8 @@ class MenuBar(QMenuBar):
         self.file_menu = QMenu(LOCTEXT(u"文件"), self)
         self.addMenu(self.file_menu)
         self._add_action(self.file_menu, LOCTEXT(u"添加文件"), self.parent().commandAddNewFiles)
+        self._add_action(self.file_menu, LOCTEXT(u"添加文件夹"), self.parent().commandAddFolder)
+        self._add_action(self.file_menu, LOCTEXT(u"删除文件"), self.parent().commandDeleteFiles)
         self._add_action(self.file_menu, LOCTEXT(u"更改工作目录"), self.cdCommand)
         self.file_menu.addSeparator()
         self._add_action(self.file_menu, LOCTEXT(u"加载列表…"), self.tryLoadCommand, "Ctrl+O")

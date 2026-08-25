@@ -99,6 +99,13 @@ class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):
             print(result.args)
             print(result.stderr)
 
+
+class CommandDeleteRows(CommandBaseWithOwner, CommandDirectCallMixin):
+    def execute(self):
+        if self.args is not None:
+            self.owner.deleteViewRows(self.args[0])
+
+
 class CommandCD(CommandBaseWithOwner, CommandDirectCallMixin):
     def execute(self):
         self.owner.changeWorkDir(self.args[0])

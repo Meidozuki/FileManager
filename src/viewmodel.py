@@ -40,6 +40,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             "save": CommandSave(self),
             "load": CommandLoad(self),
             "add_file": CommandAddTableRow,
+            "delete_rows": CommandDeleteRows,
             "update_image": CommandUpdatePreviewImage,
             "update_tags": CommandUpdateTags,
             "toggle_file_tag": CommandToggleFileTag,
@@ -217,6 +218,28 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         items.append(new_one)
         self.onDataChanged()
         self.triggerCommandNotifications("add_new", True)
+        return True
+
+    def deleteViewRows(self, view_rows: list[int]) -> bool:
+        if not view_rows:
+            self.triggerCommandNotifications("delete_rows", False)
+            return False
+
+        items = self.getProperty_vbao("item_list") or []
+        try:
+            source_indices = sorted(
+                {self.sourceIndexForViewRow(row) for row in view_rows},
+                reverse=True,
+            )
+        except (IndexError, TypeError):
+            self.triggerCommandNotifications("delete_rows", False)
+            return False
+
+        for source_index in source_indices:
+            del items[source_index]
+
+        self.onDataChanged()
+        self.triggerCommandNotifications("delete_rows", True)
         return True
 
     def updateImage(self, view_row: int, image_path: str):

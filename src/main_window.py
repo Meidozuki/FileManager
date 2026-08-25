@@ -304,6 +304,24 @@ class MainWindow(QMainWindow, vbao.core.View):
                 self.getCommand("add_file").directCall(name)
 
     @Slot()
+    def commandAddFolder(self):
+        folder = QFileDialog.getExistingDirectory(self, "选择要添加的文件夹")
+        if not folder:
+            return
+
+        for entry in os.listdir(folder):
+            abs_path = os.path.join(folder, entry)
+            if os.path.isfile(abs_path):
+                self.getCommand("add_file").directCall(abs_path)
+
+    @Slot()
+    def commandDeleteFiles(self):
+        rows = sorted(self.selectedIndexes)
+        if not rows:
+            return
+        self.getCommand("delete_rows").directCall(rows)
+
+    @Slot()
     def commandUpdateImage(self):
         rows = self.selectedOneRow
         if rows:
