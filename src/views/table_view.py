@@ -16,6 +16,8 @@ class FileTableView(QTableView):
     def __init__(self, item_model: QStandardItemModel, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.setObjectName("fileTable")
+
         ResizeMode = QHeaderView.ResizeMode
         self.configs = [
             HorizontalHeaderConfig("文件名",   220, ResizeMode.Interactive),

@@ -123,6 +123,17 @@ QLabel#tagPanelTitle {{ font-size: 20px; font-weight: 600; color: {COLORS['text'
 QLabel#tagPanelSubtitle {{ color: {COLORS['text_muted']}; font-size: 12px; }}
 QFrame#tagCard {{ background: {COLORS['surface']}; border: 1px solid {COLORS['border_soft']}; border-radius: 10px; }}
 QLabel#sectionTitle {{ font-size: 15px; font-weight: 600; color: {COLORS['text']}; }}
+QToolButton#filterToggle {{
+    background: transparent;
+    border: none;
+    color: {COLORS['text']};
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0;
+    spacing: 6px;
+}}
+QToolButton#filterToggle:hover {{ color: {COLORS['primary_hover']}; }}
+QToolButton#filterToggle:focus {{ outline: none; }}
 QLabel#currentFileLabel {{ color: {COLORS['text_secondary']}; background: {COLORS['surface_muted']}; border-radius: 6px; padding: 7px; }}
 QLabel#countBadge {{ color: {COLORS['primary_hover']}; background: {COLORS['primary_soft']}; border-radius: 8px; padding: 2px 7px; font-weight: 600; }}
 QLabel#emptyHint {{ color: {COLORS['text_muted']}; padding: 8px 2px; }}

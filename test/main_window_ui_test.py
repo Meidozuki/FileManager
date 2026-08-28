@@ -14,7 +14,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
 from src.main_window import ElidedLabel, MainWindow
 from src.tag import TagModel
-from src.tag.panel import TagManagerDialog
+from src.tag.panel import TagManagerDialog, TagPanel
+from src.tag.schema import TagFilter
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -46,7 +47,7 @@ def test_main_window_exposes_themed_workspace_structure(main_window):
         )
         for column in range(5)
     ]
-    assert headers == ["文件名", "预览", "Tag", "相对路径", "绝对路径"]
+    assert headers == ["文件名", "预览", "标签", "相对路径", "绝对路径"]
     assert main_window.view.alternatingRowColors()
     assert not main_window.view.showGrid()
 
@@ -93,3 +94,55 @@ def test_tag_manager_action_states_follow_tree_selection():
     finally:
         dialog.close()
         dialog.deleteLater()
+
+
+def test_tag_panel_filter_card_is_collapsed_by_default():
+    tag_model = TagModel()
+    group = tag_model.add_group("文件类型", "file-type")
+    tag_model.add_tag("图片", group.id)
+    tag_model.add_tag("公用", None)
+
+    panel = TagPanel()
+    try:
+        panel.setState(
+            tag_model=tag_model,
+            tag_filter=TagFilter(),
+            file_name=None,
+            file_tags=None,
+            visible_count=0,
+            total_count=0,
+        )
+
+        # Default state: filter body hidden, arrow points right, header stays visible.
+        assert panel.filter_content.isHidden() is True
+        assert panel.filter_toggle.arrowType() == Qt.ArrowType.RightArrow
+        assert panel.filter_toggle.isChecked() is False
+        # Header controls should NOT be hidden together with the body.
+        assert panel.count_label.isHidden() is False
+        clear_button = next(
+            button for button in panel.findChildren(QPushButton)
+            if button.text() == "清除"
+        )
+        assert clear_button.isHidden() is False
+
+        # Expanding shows filter controls and flips the arrow.
+        panel.filter_toggle.setChecked(True)
+        assert panel.filter_content.isHidden() is False
+        assert panel.filter_toggle.arrowType() == Qt.ArrowType.DownArrow
+
+        # Filter signal keeps working after expansion.
+        emitted: list[tuple[dict, list]] = []
+        panel.filterChanged.connect(
+            lambda exclusive, coexist: emitted.append((dict(exclusive), list(coexist)))
+        )
+        panel._filter_coexist["公用"].setChecked(True)
+        assert emitted, "filterChanged should still fire after expansion"
+        assert emitted[-1][1] == ["公用"]
+
+        # Collapsing hides the controls again without losing filter state.
+        panel.filter_toggle.setChecked(False)
+        assert panel.filter_content.isHidden() is True
+        assert panel.filter_toggle.arrowType() == Qt.ArrowType.RightArrow
+    finally:
+        panel.close()
+        panel.deleteLater()

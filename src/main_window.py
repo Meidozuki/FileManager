@@ -55,10 +55,10 @@ class MainWindow(QMainWindow, vbao.core.View):
         self.prop_listener = ViewPropListener(self)
         self.cmd_listener = ViewCmdListener(self)
 
-        # self.setObjectName("mainWindow")
+        self.setObjectName("mainWindow")
         self.setWindowTitle("文件管理器")
         self.resize(QSize(1180, 720))
-        # self.setMinimumSize(QSize(880, 560))
+        self.setMinimumSize(QSize(880, 560))
         self.setStyleSheet(MAIN_WINDOW_STYLE)
 
         self.menu_bar = MenuBar(self)
@@ -121,7 +121,7 @@ class MainWindow(QMainWindow, vbao.core.View):
 
         self.view.setIconSize(QSize(30, 30))
         self.view.setAlternatingRowColors(True)
-        # self.view.setShowGrid(False)
+        self.view.setShowGrid(False)
         # self.view.setWordWrap(False)
         self.view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -187,7 +187,6 @@ class MainWindow(QMainWindow, vbao.core.View):
             pixmap = row_data.getPreviewImage()
             if pixmap is not None:
                 preview_image = QLabel()
-                preview_image.setObjectName("previewImage")
                 preview_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 preview_image.setPixmap(pixmap)
                 self.setIndexWidget(view_row, 1, preview_image)
@@ -230,7 +229,6 @@ class MainWindow(QMainWindow, vbao.core.View):
         table_layout.addWidget(table_header)
 
         self.table_stack = QStackedWidget(table_card)
-        self.table_stack.setObjectName("tableStack")
         self.empty_state = QLabel("还没有文件，点击“添加文件”开始整理。")
         self.empty_state.setObjectName("emptyState")
         self.empty_state.setAlignment(Qt.AlignmentFlag.AlignCenter)

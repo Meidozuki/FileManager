@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QScrollArea,
     QSizePolicy,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -104,14 +105,24 @@ class TagPanel(QFrame):
         filter_layout = QVBoxLayout(filter_card)
         filter_layout.setContentsMargins(12, 12, 12, 12)
         filter_header = QHBoxLayout()
-        filter_title = QLabel("文件筛选")
-        filter_title.setObjectName("sectionTitle")
+        self.filter_toggle = QToolButton()
+        self.filter_toggle.setObjectName("filterToggle")
+        self.filter_toggle.setText("文件筛选")
+        self.filter_toggle.setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self.filter_toggle.setCheckable(True)
+        self.filter_toggle.setAutoRaise(True)
+        self.filter_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.filter_toggle.setToolTip("展开 / 收起文件筛选")
+        self.filter_toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self.filter_toggle.toggled.connect(self._on_filter_toggle)
         self.count_label = QLabel("0 / 0")
         self.count_label.setObjectName("countBadge")
         clear_button = QPushButton("清除")
         clear_button.setObjectName("quietButton")
         clear_button.clicked.connect(self._clear_filter)
-        filter_header.addWidget(filter_title)
+        filter_header.addWidget(self.filter_toggle)
         filter_header.addStretch()
         filter_header.addWidget(self.count_label)
         filter_header.addWidget(clear_button)
@@ -121,6 +132,7 @@ class TagPanel(QFrame):
         self.filter_content_layout.setContentsMargins(0, 4, 0, 0)
         self.filter_content_layout.setSpacing(8)
         filter_layout.addWidget(self.filter_content)
+        self._set_filter_collapsed(True)
         scroll_layout.addWidget(filter_card)
 
         file_card = QFrame()
@@ -147,6 +159,21 @@ class TagPanel(QFrame):
 
     def _apply_style(self):
         self.setStyleSheet(TAG_PANEL_STYLE)
+
+    def _set_filter_collapsed(self, collapsed: bool) -> None:
+        self.filter_content.setVisible(not collapsed)
+        self.filter_toggle.setArrowType(
+            Qt.ArrowType.RightArrow if collapsed else Qt.ArrowType.DownArrow
+        )
+        if self.filter_toggle.isChecked() == collapsed:
+            # keep the button's checked state in sync with the collapsed flag
+            # (checked = expanded); block signals to avoid a feedback loop.
+            self.filter_toggle.blockSignals(True)
+            self.filter_toggle.setChecked(not collapsed)
+            self.filter_toggle.blockSignals(False)
+
+    def _on_filter_toggle(self, checked: bool) -> None:
+        self._set_filter_collapsed(not checked)
 
     def setState(
         self,
@@ -349,7 +376,6 @@ class TagManagerDialog(QDialog):
         root.addWidget(description)
 
         self.tree = QTreeWidget()
-        self.tree.setObjectName("tagRuleTree")
         self.tree.setHeaderLabels(["名称", "类型"])
         self.tree.setAlternatingRowColors(True)
         self.tree.setRootIsDecorated(True)

@@ -67,7 +67,6 @@ class MenuBar(QMenuBar):
     @wraps(QMenuBar.__init__)
     def __init__(self, parent):
         super().__init__(parent)
-        self.setObjectName("mainMenuBar")
         self.constructTableOpMenu()
 
     @staticmethod

@@ -48,7 +48,6 @@ class NavigatorWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setObjectName("Navigator")
         self.setWindowTitle(QCoreApplication.translate(
             "Hello", "Hello"
         ))
@@ -63,7 +62,6 @@ class NavigatorWindow(QMainWindow):
 
         for item in NavigatorTableHelper.get():
             button = QPushButton(self)
-            button.setObjectName(item.key)
             button.setText(item.text)
             button.clicked.connect(self.create_subwindow_callback(item.window_cls))
 
