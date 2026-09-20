@@ -56,3 +56,33 @@ def test_clean_invalid_files_removes_missing_items_with_mocked_exists(tmp_path, 
     remained = viewmodel.getProperty_vbao("item_list")
     assert [item.short_name for item in remained] == ["keep-a.jpg", "keep-b.png"]
     assert viewmodel.visible_source_indices == [0, 1]
+
+
+def test_create_one_line_skips_duplicate_abs_path(tmp_path):
+    first = tmp_path / "same-file.jpg"
+    second = tmp_path / "./same-file.jpg"
+
+    first.write_text("x", encoding="utf-8")
+
+    viewmodel = make_viewmodel(tmp_path, [])
+
+    assert viewmodel.createOneLine(str(first), check=True)
+    assert not viewmodel.createOneLine(str(second), check=True)
+
+    items = viewmodel.getProperty_vbao("item_list")
+    assert len(items) == 1
+    assert items[0].abs_path == os.path.abspath(str(first))
+
+
+def test_on_data_changed_deduplicates_existing_item_list_by_abs_path(tmp_path):
+    file_path = tmp_path / "dup.jpg"
+    file_path.write_text("x", encoding="utf-8")
+
+    first = TableItem(str(file_path))
+    second = TableItem(str(tmp_path / "./dup.jpg"))
+
+    viewmodel = make_viewmodel(tmp_path, [first, second])
+
+    items = viewmodel.getProperty_vbao("item_list")
+    assert len(items) == 1
+    assert items[0].abs_path == os.path.abspath(str(file_path))

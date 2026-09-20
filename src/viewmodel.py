@@ -78,6 +78,21 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
     def work_dir(self):
         return self.getProperty("work_dir")
 
+    @staticmethod
+    def _canonicalAbsPath(path: str) -> str:
+        return os.path.normcase(os.path.abspath(path))
+
+    def _deduplicateItemsByAbsPath(self, items: list[TableItem]) -> list[TableItem]:
+        unique_items: list[TableItem] = []
+        seen_paths: set[str] = set()
+        for item in items:
+            canonical_path = self._canonicalAbsPath(item.abs_path)
+            if canonical_path in seen_paths:
+                continue
+            seen_paths.add(canonical_path)
+            unique_items.append(item)
+        return unique_items
+
     @property
     def visible_source_indices(self) -> list[int]:
         indices = self.getProperty_vbao("visible_source_indices")
@@ -112,7 +127,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
 
         self.tag_model = tag_model
         self.tag_filter.clear()
-        self.setProperty_vbao('item_list', items)
+        self.setProperty_vbao('item_list', self._deduplicateItemsByAbsPath(items))
 
         work_dir = metadata.get("work_dir")
         if isinstance(work_dir, str) and os.path.exists(work_dir):
@@ -174,6 +189,10 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
 
     def onDataChanged(self):
         items = self.getProperty_vbao("item_list") or []
+        deduplicated_items = self._deduplicateItemsByAbsPath(items)
+        if len(deduplicated_items) != len(items):
+            self.setProperty_vbao("item_list", deduplicated_items)
+            items = deduplicated_items
         visible_indices = self._calculateVisibleSourceIndices()
         self.setProperty_vbao("visible_source_indices", visible_indices)
         self.setProperty_vbao(
@@ -212,12 +231,22 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
     # commands
     def createOneLine(self, filename: str, check: bool = False) -> bool:
         if check and not os.path.exists(filename):
+            self.triggerCommandNotifications("add_new", False)
+            return False
+
+        items = self.getProperty_vbao("item_list") or []
+        incoming_path = self._canonicalAbsPath(filename)
+        existing_paths = {
+            self._canonicalAbsPath(item.abs_path)
+            for item in items
+        }
+        if incoming_path in existing_paths:
+            self.triggerCommandNotifications("add_new", False)
             return False
 
         new_one = TableItem(filename)
         if self.config["auto_show_image_file"]:
             new_one.autoDetectImage()
-        items = self.getProperty_vbao("item_list")
         items.append(new_one)
         self.onDataChanged()
         self.triggerCommandNotifications("add_new", True)
