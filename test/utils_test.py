@@ -9,31 +9,31 @@ pytest.importorskip("PySide6")
 sys.path.append(os.path.abspath('..'))
 
 from src.common import *
-from src.model import Model
+from src.models import KeiFileDataModel
 
 
 def test_QFileDialog_format_1():
-    output = setupOneFileCategory('Images', 'png xpm jpg'.split())
+    output = convert_to_qt_file_suffix_filter('Images', 'png xpm jpg'.split())
     assert output == "Images (*.png *.xpm *.jpg)"
 
 
 def test_QFileDialog_format_all_file():
-    output = setupOneFileCategory('All', ['*'])
+    output = convert_to_qt_file_suffix_filter('All', ['*'])
     assert output == "All (*.*)"
 
 
 def test_QFileDialog_format_multi():
     ls = [
-        setupOneFileCategory('Images', 'png xpm jpg'.split()),
-        setupOneFileCategory("Text files", ['txt']),
-        setupOneFileCategory("XML files", ['xml']),
+        convert_to_qt_file_suffix_filter('Images', 'png xpm jpg'.split()),
+        convert_to_qt_file_suffix_filter("Text files", ['txt']),
+        convert_to_qt_file_suffix_filter("XML files", ['xml']),
     ]
-    output = joinFileCategories(ls)
+    output = join_qt_file_suffix_filters(ls)
     assert output == "Images (*.png *.xpm *.jpg);;Text files (*.txt);;XML files (*.xml)"
 
 
 def test_model_config(tmp_path):
-    model = Model()
+    model = KeiFileDataModel()
     expected = dict(model.config)
     config_path = tmp_path / 'config.json'
     model.saveConfig(str(config_path))

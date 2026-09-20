@@ -3,14 +3,15 @@ import json
 import logging
 import tempfile
 import pandas as pd
-from typing import List, Mapping
+from typing import List, Mapping, Dict
 
-from .vbao_wrapper import vbao
-from .common import changeFileExt, setupOneFileCategory, joinFileCategories
-from .table_item import TableItem
+from src.models.initial_info import InitialInfo
+from src.vbao_wrapper import vbao
+from src.common import changeFileExt, convert_to_qt_file_suffix_filter, join_qt_file_suffix_filters
+from src.table_item import TableItem
 
 
-class Model(vbao.core.Model):
+class BaseDataModel(vbao.core.Model):
     """
     model用来与磁盘交互，此处实现为无状态的工具类
     """
@@ -18,39 +19,44 @@ class Model(vbao.core.Model):
     def __init__(self):
         super().__init__()
 
-        self.file_filters = {
-            'image': 'jpg,png',
-            'csv': 'csv',
-            'all': '*'
-        }
+        # immutable infos
+        self.init_info = InitialInfo()
 
         self.default_config = {
             'temp_dir': 'savedata',
             'auto_show_image_file': True,
-            'version': 0.1
         }
+        # mutable configs
         self.config = dict(self.default_config)
 
-    def getCategory(self, name):
-        """
-        get categories from self.file_filters, need be converted to QFileDialog format
-        """
-        return (name, self.file_filters[name].split(','))
+    @property
+    def version(self) -> str:
+        return self.init_info.app_version
 
     @property
-    def save_format(self):
-        return joinFileCategories([
-            setupOneFileCategory(*self.getCategory('csv')),
-            setupOneFileCategory(*self.getCategory('all'))
-        ])
+    def file_version(self):
+        return self.init_info.file_version
+
+    @property
+    def file_filters(self) -> Dict[str, str]:
+        return self.init_info.file_filters
 
     @property
     def temp_dir(self) -> str:
-        path = self.config["temp_dir"]
-        if not os.path.exists(path):
-            logging.info(f"temp dir {path} not exist, will mkdir")
-            os.mkdir(path)
+        path = self.config.get("temp_dir", "temp")
+        assert isinstance(path, str)
         return path
+
+    @property
+    def save_format(self):
+        def get_file_category(name):
+            # get categories from self.file_filters, need be converted to QFileDialog format
+            return name, self.file_filters[name].split(',')
+
+        return join_qt_file_suffix_filters([
+            convert_to_qt_file_suffix_filter(*get_file_category('csv')),
+            convert_to_qt_file_suffix_filter(*get_file_category('all'))
+        ])
 
     # configure
     def saveConfig(self, path='config.json'):

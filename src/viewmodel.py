@@ -2,20 +2,16 @@ import os
 
 import pandas as pd
 
-from PySide6.QtWidgets import (
-    QWidget
-)
 from PySide6.QtGui import (
     QStandardItemModel, QStandardItem
 )
 
-from .vbao_wrapper import vbao
 # import vbao
 from .table_item import TableItem, TableItemChecklist
 from .tag import (
     TagFilter, TagModel, TagRuleError, normalize_tag_name, normalize_tags
 )
-from .model import Model
+from src.models import KeiFileDataModel
 from .row_mapping import source_index_for_view_row
 from .vm_commands import *
 
@@ -30,7 +26,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
     def __init__(self, parent=None, ):
         super().__init__(parent)
 
-        self.model = Model()
+        self.model = KeiFileDataModel()
         self.tag_model = TagModel()
         self.tag_filter = TagFilter()
         self.setListener(vbao.DummyPropListener())
@@ -56,7 +52,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         self.model.loadConfig()
 
         self.clear()
-        self.setProperty_vbao("temp_dir", self.model.temp_dir)
+        self.setProperty_vbao("temp_dir", self.model.safe_temp_dir)
         self.setProperty_vbao("save_format", self.model.save_format)
         self.setProperty_vbao("work_dir", os.getcwd())
         self.triggerPropertyNotifications("work_dir")

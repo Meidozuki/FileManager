@@ -9,9 +9,10 @@ pytest.importorskip("PySide6")
 
 sys.path.append(os.path.abspath('..'))
 
-from src.model import Model, TableItem
+from src.models import KeiFileDataModel
+from src.table_item import TableItem
 
-model = Model()
+model = KeiFileDataModel()
 
 items = [TableItem(f'{i}.jpg') for i in range(10)]
 

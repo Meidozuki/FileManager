@@ -28,10 +28,10 @@ def changeFileExt(filename: str, new_ext: str):
     return os.path.splitext(filename)[0] + '.' + new_ext
 
 
-def setupOneFileCategory(name: str, suffix: list):
+def convert_to_qt_file_suffix_filter(name: str, suffix: list):
     """
     convert to QFileDialog format
-    example: setupOneFileCategory('image', ['jpg','png'])
+    example: convert_to_qt_file_suffix_filter('image', ['jpg','png'])
     :param name: file category
     :param suffix: a list, contains file suffixes
     """
@@ -39,9 +39,9 @@ def setupOneFileCategory(name: str, suffix: list):
     return f"{name} ({' '.join(suffix)})"
 
 
-def joinFileCategories(categories: list):
+def join_qt_file_suffix_filters(categories: list):
     """
     concatenate multiple file filters for QFileDialog
-    :param categories: QFileDialog format from setupOneFileCategory()
+    :param categories: QFileDialog format from convert_to_qt_file_suffix_filter()
     """
     return ';;'.join(categories)
