@@ -47,6 +47,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             "manage_tags": CommandManageTagDefinition,
             "filter_tags": CommandFilterTags,
             "clear_filters": CommandClearTagFilters,
+            "clean_invalid_files": CommandCleanInvalidFiles,
             "open": CommandOpenFile,
             "change_dir": CommandCD,
         })
@@ -59,6 +60,8 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         self.setProperty_vbao("save_format", self.model.save_format)
         self.setProperty_vbao("work_dir", os.getcwd())
         self.triggerPropertyNotifications("work_dir")
+        self.setProperty_vbao("current_csv_path", "")
+        self.triggerPropertyNotifications("current_csv_path")
         if os.path.exists(start_load_path):
             self.loadData(start_load_path)
 
@@ -122,6 +125,8 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
 
         self.onDataChanged()
         self.triggerPropertyNotifications("tag_schema")
+        self.setProperty_vbao("current_csv_path", filename)
+        self.triggerPropertyNotifications("current_csv_path")
         self.triggerCommandNotifications("load", True)
         return df
 
@@ -157,6 +162,8 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             return
 
         self.triggerPropertyNotifications("tag_schema")
+        self.setProperty_vbao("current_csv_path", filename)
+        self.triggerPropertyNotifications("current_csv_path")
         self.triggerCommandNotifications("save", True)
 
     def _calculateVisibleSourceIndices(self) -> list[int]:
@@ -372,6 +379,18 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         self.tag_filter.clear()
         self.onDataChanged()
         self.triggerCommandNotifications("clear_filters", True)
+
+    def cleanInvalidFiles(self):
+        items = self.getProperty_vbao("item_list") or []
+        original_count = len(items)
+        items[:] = [item for item in items if os.path.exists(item.abs_path)]
+        removed_count = original_count - len(items)
+        if removed_count <= 0:
+            self.triggerCommandNotifications("clean_invalid_files", False)
+            return
+
+        self.onDataChanged()
+        self.triggerCommandNotifications("clean_invalid_files", True)
 
     def changeWorkDir(self, new_dir: str):
         assert os.path.exists(new_dir)

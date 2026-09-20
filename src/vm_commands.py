@@ -84,6 +84,11 @@ class CommandClearTagFilters(CommandBaseWithOwner):
         self.owner.clearTagFilters()
 
 
+class CommandCleanInvalidFiles(CommandBaseWithOwner):
+    def execute(self):
+        self.owner.cleanInvalidFiles()
+
+
 class CommandOpenFile(CommandBaseWithOwner, CommandDirectCallMixin):
     def setParameter(self, open_program, overload):
         self.open_program = open_program

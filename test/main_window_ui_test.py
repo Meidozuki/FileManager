@@ -68,6 +68,20 @@ def test_main_window_actions_and_empty_status_are_ready(main_window):
     assert main_window.status_count_label.text() == "显示 0 / 共 0"
     assert isinstance(main_window.work_dir_label, ElidedLabel)
     assert main_window.work_dir_label.toolTip() == main_window.work_dir_label.fullText
+    assert isinstance(main_window.current_csv_label, ElidedLabel)
+    assert main_window.current_csv_label.objectName() == "current csv display"
+    assert main_window.current_csv_label.fullText == "尚未保存"
+    assert main_window.current_csv_label.toolTip() == "尚未保存"
+    assert main_window.current_csv_path == ""
+
+    file_action_map = {
+        action.text(): action for action in file_actions if not action.isSeparator()
+    }
+    assert "保存" in file_action_map
+    assert "另存为…" in file_action_map
+    assert "保存列表…" not in file_action_map
+    assert file_action_map["保存"].shortcut().toString() == "Ctrl+S"
+    assert file_action_map["另存为…"].shortcut().toString() == "Ctrl+Shift+S"
 
 
 def test_tag_manager_action_states_follow_tree_selection():

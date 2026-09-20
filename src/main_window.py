@@ -110,6 +110,10 @@ class MainWindow(QMainWindow, vbao.core.View):
     def temp_dir(self):
         return self.getProperty("temp_dir")
 
+    @property
+    def current_csv_path(self) -> str:
+        return self.getProperty("current_csv_path") or ""
+
     def getIndex(self, i, j):
         return self.view.model().index(i, j)
 
@@ -262,10 +266,21 @@ class MainWindow(QMainWindow, vbao.core.View):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Preferred,
         )
+        csv_caption = QLabel("当前 CSV")
+        csv_caption.setObjectName("statusCaption")
+        self.current_csv_label = ElidedLabel("尚未保存")
+        self.current_csv_label.setObjectName("current csv display")
+        self.current_csv_label.setMinimumWidth(80)
+        self.current_csv_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         self.status_count_label = QLabel("显示 0 / 共 0")
         self.status_count_label.setObjectName("itemCountBadge")
         status_layout.addWidget(caption)
         status_layout.addWidget(self.work_dir_label, 1)
+        status_layout.addWidget(csv_caption)
+        status_layout.addWidget(self.current_csv_label, 1)
         status_layout.addWidget(self.status_count_label)
         outer_v.addWidget(status_card)
 
@@ -318,6 +333,10 @@ class MainWindow(QMainWindow, vbao.core.View):
         if not rows:
             return
         self.getCommand("delete_rows").directCall(rows)
+
+    @Slot()
+    def commandCleanInvalidFiles(self):
+        self.runCommand("clean_invalid_files")
 
     @Slot()
     def commandUpdateImage(self):
@@ -394,6 +413,14 @@ class ViewPropListener(vbao.PropertyListenerBase):
                 elif label is not None:
                     label.setText(work_dir)
                     label.setToolTip(work_dir)
+            case 'current_csv_path':
+                label = self.master.layout_widget.findChild(QLabel, "current csv display")
+                csv_path = self.master.getProperty("current_csv_path") or "尚未保存"
+                if isinstance(label, ElidedLabel):
+                    label.setFullText(csv_path)
+                elif label is not None:
+                    label.setText(csv_path)
+                    label.setToolTip(csv_path)
             case _:
                 print('uncaught prop ' + prop_name)
 

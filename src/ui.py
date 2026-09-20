@@ -1,4 +1,5 @@
 from functools import wraps
+import os
 
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QHBoxLayout, QMenuBar, QMenu, QFileDialog, QPushButton
@@ -84,10 +85,12 @@ class MenuBar(QMenuBar):
         self._add_action(self.file_menu, LOCTEXT(u"添加文件"), self.parent().commandAddNewFiles)
         self._add_action(self.file_menu, LOCTEXT(u"添加文件夹"), self.parent().commandAddFolder)
         self._add_action(self.file_menu, LOCTEXT(u"删除文件"), self.parent().commandDeleteFiles)
+        self._add_action(self.file_menu, LOCTEXT(u"清理已失效文件"), self.parent().commandCleanInvalidFiles)
         self._add_action(self.file_menu, LOCTEXT(u"更改工作目录"), self.cdCommand)
         self.file_menu.addSeparator()
         self._add_action(self.file_menu, LOCTEXT(u"加载列表…"), self.tryLoadCommand, "Ctrl+O")
-        self._add_action(self.file_menu, LOCTEXT(u"保存列表…"), self.trySaveCommand, "Ctrl+S")
+        self._add_action(self.file_menu, LOCTEXT(u"保存"), self.trySaveCommand, "Ctrl+S")
+        self._add_action(self.file_menu, LOCTEXT(u"另存为…"), self.trySaveAsCommand, "Ctrl+Shift+S")
         self.file_menu.addSeparator()
         self._add_action(self.file_menu, LOCTEXT(u"清空列表"), self.clearCommand)
 
@@ -98,8 +101,22 @@ class MenuBar(QMenuBar):
 
     @Slot()
     def trySaveCommand(self):
+        current = self.parent().current_csv_path
+        if current:
+            self.parent().getCommand("save").directCall(current)
+        else:
+            self.trySaveAsCommand()
+
+    @Slot()
+    def trySaveAsCommand(self):
+        current = self.parent().current_csv_path
+        if current:
+            default_dir = os.path.dirname(current) or self.parent().temp_dir
+            default_path = os.path.join(default_dir, os.path.basename(current))
+        else:
+            default_path = self.parent().temp_dir
         path, category = QFileDialog.getSaveFileName(
-            self, "保存文件列表", self.parent().temp_dir,
+            self, "另存为", default_path,
             filter=self.parent().save_format,
         )
         if path:
