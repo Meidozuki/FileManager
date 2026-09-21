@@ -221,6 +221,12 @@ class TagPanel(QFrame):
         parent_layout.addWidget(box)
         return box, layout
 
+    def _coexist_sections(self):
+        for group in self._tag_model.coexist_groups:
+            yield f"{group.name}（多选）", group.tags
+        if self._tag_model.coexist_tags:
+            yield "未分组共存 Tag", self._tag_model.coexist_tags
+
     def _rebuild_filter_editor(self):
         _clear_layout(self.filter_content_layout)
         self._filter_groups.clear()
@@ -244,10 +250,10 @@ class TagPanel(QFrame):
             buttons.buttonToggled.connect(self._on_filter_control_changed)
             self._filter_groups[group.id] = buttons
 
-        if self._tag_model.coexist_tags:
-            _, layout = self._make_group_box("共存 Tag", self.filter_content_layout)
-            selected = set(self._tag_filter.coexist)
-            for tag in self._tag_model.coexist_tags:
+        selected = set(self._tag_filter.coexist)
+        for title, tags in self._coexist_sections():
+            _, layout = self._make_group_box(title, self.filter_content_layout)
+            for tag in tags:
                 checkbox = QCheckBox(tag)
                 checkbox.setChecked(tag in selected)
                 checkbox.toggled.connect(self._on_filter_control_changed)
@@ -289,9 +295,9 @@ class TagPanel(QFrame):
             buttons.buttonToggled.connect(self._on_file_group_changed)
             self._file_groups[group.id] = buttons
 
-        if self._tag_model.coexist_tags:
-            _, layout = self._make_group_box("共存 Tag", self.file_content_layout)
-            for tag in self._tag_model.coexist_tags:
+        for title, tags in self._coexist_sections():
+            _, layout = self._make_group_box(title, self.file_content_layout)
+            for tag in tags:
                 checkbox = QCheckBox(tag)
                 checkbox.setChecked(tag in selected_tags)
                 checkbox.toggled.connect(
@@ -367,9 +373,9 @@ class TagManagerDialog(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 16, 18, 16)
         root.setSpacing(10)
-        title = QLabel("Tag 与互斥规则")
+        title = QLabel("Tag 分组管理")
         title.setObjectName("dialogTitle")
-        description = QLabel("互斥组内每个文件只能选择一个 Tag；共存 Tag 可以多选。")
+        description = QLabel("互斥组内最多选一个 Tag；共存组内可多选。组名仅用于分类，筛选需满足全部已选标签。")
         description.setObjectName("dialogDescription")
         description.setWordWrap(True)
         root.addWidget(title)
@@ -388,7 +394,7 @@ class TagManagerDialog(QDialog):
         actions.setSpacing(8)
         self.action_buttons: dict[str, QPushButton] = {}
         for key, text, slot, object_name in [
-            ("add_group", "新增互斥组", self._add_group, "primaryButton"),
+            ("add_group", "新增组", self._add_group, "primaryButton"),
             ("add_tag", "新增 Tag", self._add_tag, "primaryButton"),
             ("rename", "改名", self._rename_selected, ""),
             ("move", "移动 Tag", self._move_selected, ""),
@@ -415,28 +421,32 @@ class TagManagerDialog(QDialog):
         self._tag_model = tag_model
         self.tree.clear()
 
-        exclusive_root = QTreeWidgetItem(["互斥组", "规则分类"])
-        exclusive_root.setData(0, _KIND_ROLE, "exclusive_root")
-        self.tree.addTopLevelItem(exclusive_root)
-        for group in tag_model.exclusive_groups:
-            group_item = QTreeWidgetItem([group.name, "互斥组"])
-            group_item.setData(0, _KIND_ROLE, "group")
-            group_item.setData(0, _ID_ROLE, group.id)
-            exclusive_root.addChild(group_item)
-            for tag in group.tags:
-                tag_item = QTreeWidgetItem([tag, "互斥 Tag"])
-                tag_item.setData(0, _KIND_ROLE, "tag")
-                tag_item.setData(0, _ID_ROLE, tag)
-                group_item.addChild(tag_item)
+        for title, kind, groups in (
+            ("互斥", "exclusive_root", tag_model.exclusive_groups),
+            ("共存", "coexist_root", tag_model.coexist_groups),
+        ):
+            root = QTreeWidgetItem([f"{title}组", "规则分类"])
+            root.setData(0, _KIND_ROLE, kind)
+            self.tree.addTopLevelItem(root)
+            for group in groups:
+                group_item = QTreeWidgetItem([group.name, f"{title}组"])
+                group_item.setData(0, _KIND_ROLE, "group")
+                group_item.setData(0, _ID_ROLE, group.id)
+                root.addChild(group_item)
+                for tag in group.tags:
+                    tag_item = QTreeWidgetItem([tag, f"{title} Tag"])
+                    tag_item.setData(0, _KIND_ROLE, "tag")
+                    tag_item.setData(0, _ID_ROLE, tag)
+                    group_item.addChild(tag_item)
 
-        coexist_root = QTreeWidgetItem(["共存 Tag", "规则分类"])
-        coexist_root.setData(0, _KIND_ROLE, "coexist_root")
-        self.tree.addTopLevelItem(coexist_root)
+        ungrouped_root = QTreeWidgetItem(["未分组共存 Tag", "规则分类"])
+        ungrouped_root.setData(0, _KIND_ROLE, "ungrouped_root")
+        self.tree.addTopLevelItem(ungrouped_root)
         for tag in tag_model.coexist_tags:
             tag_item = QTreeWidgetItem([tag, "共存 Tag"])
             tag_item.setData(0, _KIND_ROLE, "tag")
             tag_item.setData(0, _ID_ROLE, tag)
-            coexist_root.addChild(tag_item)
+            ungrouped_root.addChild(tag_item)
 
         self.tree.expandAll()
         self._update_action_states()
@@ -467,9 +477,15 @@ class TagManagerDialog(QDialog):
         return None
 
     def _add_group(self):
-        name, ok = QInputDialog.getText(self, "新增互斥组", "组名")
+        group_types = {"互斥组（单选）": True, "共存组（多选）": False}
+        group_type, ok = QInputDialog.getItem(
+            self, "新增组", "组类型", list(group_types), editable=False,
+        )
+        if not ok:
+            return
+        name, ok = QInputDialog.getText(self, "新增组", "组名")
         if ok and name.strip():
-            self.operationRequested.emit("add_group", (name,))
+            self.operationRequested.emit("add_group", (name, group_types[group_type]))
 
     def _add_tag(self):
         selected = self.tree.currentItem()
@@ -495,7 +511,7 @@ class TagManagerDialog(QDialog):
             return
         label = self.tree.currentItem().text(0)
         if kind == "group":
-            detail = "删除互斥组后，组内 Tag 会转为共存 Tag，不会从文件中删除。"
+            detail = "删除组后，组内 Tag 会转为未分组共存 Tag，不会从文件中删除。"
             action = "delete_group"
         else:
             detail = "删除 Tag 会同时移除所有文件对该 Tag 的引用。"
@@ -514,20 +530,33 @@ class TagManagerDialog(QDialog):
         kind, tag = self._selected()
         if kind != "tag":
             return
-        labels = ["共存 Tag"] + [group.name for group in self._tag_model.exclusive_groups]
+        destinations = {"未分组共存 Tag": None}
+        for title, groups in (
+            ("互斥组", self._tag_model.exclusive_groups),
+            ("共存组", self._tag_model.coexist_groups),
+        ):
+            destinations.update({f"[{title}] {group.name}": group.id for group in groups})
         destination, ok = QInputDialog.getItem(
             self,
             "移动 Tag",
             "目标分类",
-            labels,
+            list(destinations),
             editable=False,
         )
         if not ok:
             return
-        group_id = None
-        if destination != "共存 Tag":
-            group_id = next(
-                group.id for group in self._tag_model.exclusive_groups
-                if group.name == destination
+        group_id = destinations[destination]
+        current_group = self._tag_model.group_for_tag(tag)
+        if group_id == (current_group.id if current_group is not None else None):
+            return
+        if self._tag_model.is_exclusive_group(group_id):
+            answer = QMessageBox.question(
+                self,
+                "移入互斥组",
+                f"移入后，含有“{tag}”的文件将保留该 Tag，移除目标互斥组内的其他 Tag。是否继续？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
             )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
         self.operationRequested.emit("move_tag", (tag, group_id))

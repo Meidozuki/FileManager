@@ -328,10 +328,10 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             if tag not in self.tag_model.all_tags:
                 continue
             group = self.tag_model.group_for_tag(tag)
-            if group is None:
-                coexist.append(tag)
-            else:
+            if group is not None and self.tag_model.is_exclusive_group(group.id):
                 exclusive[group.id] = tag
+            else:
+                coexist.append(tag)
         self.tag_filter = TagFilter(exclusive, coexist)
 
     def manageTagDefinition(self, action: str, *args):
@@ -339,7 +339,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
         selected_filter_tags = self._selectedFilterTags()
         try:
             if action == "add_group":
-                self.tag_model.add_group(args[0])
+                self.tag_model.add_group(args[0], exclusive=args[1] if len(args) > 1 else True)
             elif action == "rename_group":
                 self.tag_model.rename_group(args[0], args[1])
             elif action == "delete_group":
@@ -373,7 +373,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
                 if tag in selected_filter_tags:
                     selected_filter_tags.remove(tag)
                     selected_filter_tags.append(tag)
-                if group_id is not None:
+                if self.tag_model.is_exclusive_group(group_id):
                     for item in items:
                         if tag in item.tags:
                             item.setTags(self.tag_model.apply_tag_selection(

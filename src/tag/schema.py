@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Sequence
 
 
-TAG_SCHEMA_VERSION = 1
+TAG_SCHEMA_VERSION = 2
 
 
 class TagRuleError(ValueError):
@@ -60,7 +60,7 @@ def normalize_tags(tags: str | Iterable[str] | None) -> list[str]:
 
 
 @dataclass
-class ExclusiveTagGroup:
+class TagGroup:
     id: str
     name: str
     tags: list[str] = field(default_factory=list)
@@ -69,13 +69,16 @@ class ExclusiveTagGroup:
         self.id = str(self.id).strip()
         self.name = str(self.name).strip()
         if not self.id:
-            raise TagRuleError("exclusive group id cannot be empty")
+            raise TagRuleError("group id cannot be empty")
         if not self.name:
-            raise TagRuleError("exclusive group name cannot be empty")
+            raise TagRuleError("group name cannot be empty")
         self.tags = normalize_tags(self.tags)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "tags": list(self.tags)}
+
+
+ExclusiveTagGroup = TagGroup
 
 
 @dataclass
@@ -114,80 +117,98 @@ class TagModel:
 
     def __init__(
         self,
-        exclusive_groups: Sequence[ExclusiveTagGroup | Mapping] | None = None,
+        exclusive_groups: Sequence[TagGroup | Mapping] | None = None,
         coexist_tags: str | Iterable[str] | None = None,
+        *,
+        coexist_groups: Sequence[TagGroup | Mapping] | None = None,
     ):
-        self.exclusive_groups: list[ExclusiveTagGroup] = []
+        self.exclusive_groups: list[TagGroup] = []
+        self.coexist_groups: list[TagGroup] = []
         self.coexist_tags: list[str] = []
 
-        for raw_group in exclusive_groups or []:
-            group = raw_group if isinstance(raw_group, ExclusiveTagGroup) else ExclusiveTagGroup(
-                id=raw_group.get("id") or self._new_group_id(),
-                name=raw_group.get("name", ""),
-                tags=raw_group.get("tags", []),
-            )
-            self._append_group(group)
+        for groups, exclusive in ((exclusive_groups, True), (coexist_groups, False)):
+            for raw_group in groups or []:
+                self._append_group(self._parse_group(raw_group), exclusive=exclusive)
 
         for tag in normalize_tags(coexist_tags):
-            if tag in self.all_tags:
-                raise TagRuleError(f'duplicate tag name: "{tag}"')
-            self.coexist_tags.append(tag)
+            self.add_tag(tag)
+
+    @classmethod
+    def _parse_group(cls, raw_group: TagGroup | Mapping) -> TagGroup:
+        if isinstance(raw_group, TagGroup):
+            return raw_group
+        if not isinstance(raw_group, Mapping):
+            raise TagRuleError("tag group must be an object")
+        return TagGroup(
+            id=raw_group.get("id") or cls._new_group_id(),
+            name=raw_group.get("name", ""),
+            tags=raw_group.get("tags", []),
+        )
 
     @staticmethod
     def _new_group_id() -> str:
         return f"group-{uuid.uuid4().hex[:12]}"
 
     @property
+    def groups(self) -> list[TagGroup]:
+        return self.exclusive_groups + self.coexist_groups
+
+    @property
     def all_tags(self) -> list[str]:
         tags = list(self.coexist_tags)
-        for group in self.exclusive_groups:
+        for group in self.groups:
             tags.extend(group.tags)
         return tags
 
-    def _append_group(self, group: ExclusiveTagGroup):
-        if any(existing.id == group.id for existing in self.exclusive_groups):
-            raise TagRuleError(f'duplicate exclusive group id: "{group.id}"')
-        if any(existing.name == group.name for existing in self.exclusive_groups):
-            raise TagRuleError(f'duplicate exclusive group name: "{group.name}"')
+    def _append_group(self, group: TagGroup, *, exclusive: bool = True):
+        if any(existing.id == group.id for existing in self.groups):
+            raise TagRuleError(f'duplicate group id: "{group.id}"')
+        if any(existing.name == group.name for existing in self.groups):
+            raise TagRuleError(f'duplicate group name: "{group.name}"')
 
         existing_tags = set(self.all_tags)
         duplicate = next((tag for tag in group.tags if tag in existing_tags), None)
         if duplicate is not None:
             raise TagRuleError(f'duplicate tag name: "{duplicate}"')
-        self.exclusive_groups.append(group)
+        groups = self.exclusive_groups if exclusive else self.coexist_groups
+        groups.append(group)
 
-    def get_group(self, group_id: str) -> ExclusiveTagGroup:
-        for group in self.exclusive_groups:
+    def get_group(self, group_id: str) -> TagGroup:
+        for group in self.groups:
             if group.id == group_id:
                 return group
-        raise TagRuleError(f'exclusive group not found: "{group_id}"')
+        raise TagRuleError(f'group not found: "{group_id}"')
 
-    def group_for_tag(self, tag: str) -> ExclusiveTagGroup | None:
+    def is_exclusive_group(self, group_id: str | None) -> bool:
+        return any(group.id == group_id for group in self.exclusive_groups)
+
+    def group_for_tag(self, tag: str) -> TagGroup | None:
         name = normalize_tag_name(tag)
-        for group in self.exclusive_groups:
+        for group in self.groups:
             if name in group.tags:
                 return group
         return None
 
-    def add_group(self, name: str, group_id: str | None = None) -> ExclusiveTagGroup:
-        group = ExclusiveTagGroup(group_id or self._new_group_id(), name, [])
-        self._append_group(group)
+    def add_group(
+        self, name: str, group_id: str | None = None, *, exclusive: bool = True,
+    ) -> TagGroup:
+        group = TagGroup(group_id or self._new_group_id(), name, [])
+        self._append_group(group, exclusive=exclusive)
         return group
 
     def rename_group(self, group_id: str, new_name: str):
         name = str(new_name).strip()
         if not name:
-            raise TagRuleError("exclusive group name cannot be empty")
-        if any(group.id != group_id and group.name == name for group in self.exclusive_groups):
-            raise TagRuleError(f'duplicate exclusive group name: "{name}"')
+            raise TagRuleError("group name cannot be empty")
+        if any(group.id != group_id and group.name == name for group in self.groups):
+            raise TagRuleError(f'duplicate group name: "{name}"')
         self.get_group(group_id).name = name
 
     def delete_group(self, group_id: str):
         group = self.get_group(group_id)
-        self.exclusive_groups.remove(group)
-        for tag in group.tags:
-            if tag not in self.coexist_tags:
-                self.coexist_tags.append(tag)
+        groups = self.exclusive_groups if self.is_exclusive_group(group_id) else self.coexist_groups
+        groups.remove(group)
+        self.coexist_tags.extend(group.tags)
 
     def add_tag(self, name: str, group_id: str | None = None):
         tag = normalize_tag_name(name)
@@ -286,7 +307,7 @@ class TagModel:
             return [existing for existing in result if existing != name]
 
         group = self.group_for_tag(name)
-        if group is not None:
+        if group is not None and self.is_exclusive_group(group.id):
             group_tags = set(group.tags)
             result = [existing for existing in result if existing not in group_tags]
         if name not in result:
@@ -312,10 +333,14 @@ class TagModel:
         return [existing for existing in normalize_tags(tags) if existing != tag]
 
     def to_dict(self) -> dict:
+        coexist_tags = list(self.coexist_tags)
+        for group in self.coexist_groups:
+            coexist_tags.extend(group.tags)
         return {
             "tag_schema_version": self.schema_version,
             "exclusive_groups": [group.to_dict() for group in self.exclusive_groups],
-            "coexist_tags": list(self.coexist_tags),
+            "coexist_tags": normalize_tags(coexist_tags),
+            "coexist_groups": [group.to_dict() for group in self.coexist_groups],
         }
 
     @classmethod
@@ -338,13 +363,7 @@ class TagModel:
             raw_groups = []
         for raw_group in raw_groups:
             try:
-                if not isinstance(raw_group, Mapping):
-                    raise TagRuleError("exclusive group must be an object")
-                model._append_group(ExclusiveTagGroup(
-                    id=raw_group.get("id") or model._new_group_id(),
-                    name=raw_group.get("name", ""),
-                    tags=raw_group.get("tags", []),
-                ))
+                model._append_group(cls._parse_group(raw_group))
             except (TagRuleError, TypeError) as exc:
                 logging.warning("Ignoring invalid exclusive tag group: %s", exc)
 
@@ -353,9 +372,30 @@ class TagModel:
         except (TagRuleError, TypeError) as exc:
             logging.warning("Ignoring invalid coexist_tags metadata: %s", exc)
             coexist_tags = []
+        assigned_tags = set(model.all_tags)
         for tag in coexist_tags:
-            if tag in model.all_tags:
+            if tag in assigned_tags:
                 logging.warning('Ignoring duplicate coexist tag: "%s"', tag)
             else:
                 model.coexist_tags.append(tag)
+
+        raw_groups = data.get("coexist_groups", []) or []
+        if not isinstance(raw_groups, Sequence) or isinstance(raw_groups, (str, bytes)):
+            logging.warning("Ignoring invalid coexist_groups metadata")
+            raw_groups = []
+        grouped_tags: set[str] = set()
+        for raw_group in raw_groups:
+            try:
+                group = cls._parse_group(raw_group)
+                members = [tag for tag in group.tags if tag not in assigned_tags]
+                if len(members) != len(group.tags):
+                    logging.warning('Ignoring already assigned tags in coexist group "%s"', group.name)
+                model._append_group(TagGroup(group.id, group.name), exclusive=False)
+                model.coexist_groups[-1].tags = members
+            except (TagRuleError, TypeError) as exc:
+                logging.warning("Ignoring invalid coexist tag group: %s", exc)
+                continue
+            assigned_tags.update(members)
+            grouped_tags.update(members)
+        model.coexist_tags = [tag for tag in model.coexist_tags if tag not in grouped_tags]
         return model

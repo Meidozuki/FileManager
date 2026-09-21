@@ -7,6 +7,7 @@
 from .schema import (
     TAG_SCHEMA_VERSION,
     ExclusiveTagGroup,
+    TagGroup,
     TagFilter,
     TagModel,
     TagRuleError,
@@ -17,6 +18,7 @@ from .schema import (
 __all__ = [
     "TAG_SCHEMA_VERSION",
     "ExclusiveTagGroup",
+    "TagGroup",
     "TagFilter",
     "TagModel",
     "TagRuleError",
