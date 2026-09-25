@@ -234,7 +234,7 @@ class ViewModel(QStandardItemModel, vbao.core.ViewModel):
             self.triggerCommandNotifications("add_new", False)
             return False
 
-        items = self.getProperty_vbao("item_list") or []
+        items = self.getProperty_vbao("item_list")
         incoming_path = self._canonicalAbsPath(filename)
         existing_paths = {
             self._canonicalAbsPath(item.abs_path)
